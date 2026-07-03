@@ -37,11 +37,11 @@
 		63A241942FF78FA60001C8E3 /* Exceptions for "passage" folder in "passage" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				Info.plist,
 				App/Config/Debug.xcconfig,
 				App/Config/Release.xcconfig,
 				App/Config/Secrets.xcconfig,
 				App/Config/Secrets.xcconfig.example,
+				Info.plist,
 			);
 			target = 63A241702FF78FA50001C8E3 /* passage */;
 		};
