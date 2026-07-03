@@ -1,0 +1,3 @@
+// Debug.xcconfig
+// Xcode: Project → Info → Configurations → Debug → passage 타겟에 이 파일을 지정해야 적용된다.
+#include "Secrets.xcconfig"

@@ -1,0 +1,32 @@
+# ─────────────────────────────────────────────
+# Passage .gitignore  (Swift / Xcode / SPM)
+# ─────────────────────────────────────────────
+
+# macOS
+.DS_Store
+
+# Xcode — user-specific
+xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+*.xccheckout
+
+# Xcode — build artifacts
+build/
+DerivedData/
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Swift Package Manager
+.build/
+.swiftpm/xcode/package.xcworkspace/xcuserdata/
+# NOTE: Package.resolved 는 앱 프로젝트에서 커밋한다(의존성 버전 잠금). 무시하지 않는다.
+
+# ─────────────────────────────────────────────
+# Secrets — 절대 커밋 금지 (네이버 지도 키 등)
+# 새 환경에서는 Secrets.xcconfig.example 을 복사해 값을 채운다.
+# ─────────────────────────────────────────────
+**/Secrets.xcconfig
