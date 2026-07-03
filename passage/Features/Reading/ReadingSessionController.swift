@@ -18,6 +18,9 @@ final class ReadingSessionController {
     /// 현재 진행 중인 세션(없으면 nil).
     private(set) var activeSession: ReadingSession?
 
+    /// 종료 직후 "어디서 읽으셨나요?" 질문을 기다리는 세션(없으면 nil).
+    private(set) var sessionAwaitingPlace: ReadingSession?
+
     var isReading: Bool { activeSession != nil }
 
     init(modelContext: ModelContext) {
@@ -30,6 +33,7 @@ final class ReadingSessionController {
         guard activeSession == nil else { return }
         let session = ReadingSession(book: book, startPage: startPage)
         modelContext.insert(session)
+        try? modelContext.save()   // 즉시 저장 → 앱 종료·크래시에도 유지
         activeSession = session
     }
 
@@ -40,7 +44,9 @@ final class ReadingSessionController {
         session.endDate = now
         session.duration = now.timeIntervalSince(session.startDate)
         session.endPage = endPage
+        try? modelContext.save()
         activeSession = nil
+        sessionAwaitingPlace = session   // 이어서 "어디서 읽으셨나요?"
     }
 
     /// 잘못 시작한 세션을 저장하지 않고 폐기.
@@ -49,6 +55,18 @@ final class ReadingSessionController {
             modelContext.delete(session)
         }
         activeSession = nil
+    }
+
+    /// 종료된 세션에 장소를 연결하고 질문을 닫는다.
+    func assignPlace(_ place: Place, to session: ReadingSession) {
+        session.place = place
+        try? modelContext.save()
+        sessionAwaitingPlace = nil
+    }
+
+    /// 장소 질문 건너뛰기(장소는 선택이므로 세션은 그대로 저장된 채 닫힘).
+    func skipPlacePrompt() {
+        sessionAwaitingPlace = nil
     }
 
     /// 앱 시작 시 진행 중이던 세션(endDate == nil)을 복원.

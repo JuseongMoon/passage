@@ -32,11 +32,12 @@
 - [ ] 장소 질문 연결은 1c에서
 
 ### 1c. Place — "어디서 읽으셨나요?"
-- [ ] 종료 직후 장소 프롬프트: 기존 선택 / 새로 생성
-- [ ] `NaverMapView`(UIViewRepresentable) 지점 선택 · `LocationService` 현재 위치(선택)
-- [ ] `NaverMapService` reverse-geocode로 주소 자동 채움
-- [ ] 사진 첨부(`LocalImageStore`, 로컬 저장) · 장소 이름 지정
-- [ ] → 세션에 book·place·시간 연결하여 **기억 저장 완료**
+- [x] 종료 직후 장소 프롬프트: 기존 선택 / 새로 생성 / 건너뛰기 (전역 fullScreenCover 콘텐츠 전환)
+- [x] `NaverMapView`(UIViewRepresentable · NMapsMap) 탭 지점 선택 · `LocationService` 현재 위치
+- [x] `NaverMapService` reverse-geocode로 주소 자동 채움
+- [x] 사진 첨부(`LocalImageStore`, 로컬 저장) · 장소 이름 지정
+- [x] → 세션에 book·place 연결하여 **기억 저장 완료** — 로직 테스트 3종 통과, 앱 실행 검증
+- [ ] (남음) 대화형 지도 탭 플로우는 Xcode 실사용 확인 권장(라이브 키+네트워크). reverse-geocode DTO는 실응답으로 보정 필요.
 
 ### 1d. Library & Journal (회상)
 - [ ] Library: 책별 **총 독서시간 · 세션 수 · 읽은 장소** (세션에서 집계)
