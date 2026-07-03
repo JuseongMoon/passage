@@ -10,6 +10,7 @@ import SwiftUI
 import SwiftData
 
 struct BookDetailView: View {
+    @Environment(ReadingSessionController.self) private var sessionController
     let book: Book
 
     private var completedSessions: [ReadingSession] {
@@ -49,6 +50,21 @@ struct BookDetailView: View {
                 .padding(.vertical, Theme.Spacing.xs)
             }
 
+            if !sessionController.isReading {
+                Section {
+                    Button {
+                        sessionController.start(book: book)
+                    } label: {
+                        Label("읽기 시작", systemImage: "play.fill")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
+                }
+            }
+
             Section("기록") {
                 LabeledContent("총 독서시간", value: totalDuration > 0 ? totalDuration.readableDuration : "아직 없음")
                 LabeledContent("세션", value: "\(completedSessions.count)회")
@@ -58,4 +74,11 @@ struct BookDetailView: View {
         .navigationTitle(book.title)
         .navigationBarTitleDisplayMode(.inline)
     }
+}
+
+#Preview {
+    NavigationStack {
+        BookDetailView(book: PreviewSupport.sampleBook)
+    }
+    .withPreviewEnvironment()
 }

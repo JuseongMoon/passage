@@ -23,4 +23,15 @@ extension TimeInterval {
             return "\(seconds)초"
         }
     }
+
+    /// 진행 중 타이머용 시계 표기. 예: "1:05:09", "23:41".
+    var clockString: String {
+        let total = max(0, Int(self))
+        let hours = total / 3600
+        let minutes = (total % 3600) / 60
+        let seconds = total % 60
+        return hours > 0
+            ? String(format: "%d:%02d:%02d", hours, minutes, seconds)
+            : String(format: "%d:%02d", minutes, seconds)
+    }
 }

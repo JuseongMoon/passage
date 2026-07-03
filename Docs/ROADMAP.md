@@ -14,7 +14,8 @@
 - [x] `AppDependencies`(DI) + Root `TabView` 골격(서재 · 저널 · 설정) — 시뮬레이터 실행·렌더 검증 완료
 - [x] 서비스 프로토콜 + 구현/스텁(Naver REST · Location · ImageStore · Auth더미 · BookSearch스텁)
 - [x] Swift 6 language mode 전환 · 시뮬레이터 빌드 그린
-- [ ] **Xcode 전용(남음)**: xcconfig를 Debug/Release 구성에 지정 · Info.plist 네이버 키 · SPM(NMapsMap) 추가 · CloudKit capability+컨테이너 id (→ ARCHITECTURE 부록 A)
+- [x] Info.plist 네이버 키·위치 권한 · entitlements CloudKit 컨테이너 id (파일 반영)
+- [ ] **Xcode UI 필요(남음)**: Config/*.xcconfig를 Debug/Release 구성에 지정 · SPM(NMapsMap 3.21.0) 추가 · CloudKit capability 활성화(컨테이너 등록) (→ ARCHITECTURE 부록 A)
 
 ## Phase 1 — MVP 핵심
 순서는 데이터 흐름을 따른다: **책 → 세션 → 장소 → 회상**.
@@ -25,9 +26,10 @@
 - [ ] 책 삭제/편집 · 표지 이미지
 
 ### 1b. Reading Session (Source of Truth)
-- [ ] `ReadingSessionController`: Start/Stop · 활성 세션 즉시 저장 · **앱 재시작 시 복원**
-- [ ] 읽는 중 화면(조용한 경과 시간) + 전역 "읽는 중" 바
-- [ ] 시작/종료 페이지(선택) 입력
+- [x] `ReadingSessionController`: Start/Stop/Cancel · 활성 세션 즉시 저장 · **앱 재시작 시 복원** — 로직 테스트 4종 통과
+- [x] 읽는 중 화면(TimelineView 경과 시간) · 전역 fullScreenCover로 표시
+- [x] 종료 페이지(선택) 입력 — 시작 페이지 입력 UI는 후속
+- [ ] 장소 질문 연결은 1c에서
 
 ### 1c. Place — "어디서 읽으셨나요?"
 - [ ] 종료 직후 장소 프롬프트: 기존 선택 / 새로 생성
