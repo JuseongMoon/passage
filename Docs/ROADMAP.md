@@ -15,7 +15,7 @@
 - [x] 서비스 프로토콜 + 구현/스텁(Naver REST · Location · ImageStore · Auth더미 · BookSearch스텁)
 - [x] Swift 6 language mode 전환 · 시뮬레이터 빌드 그린
 - [x] Info.plist 네이버 키·위치 권한 · entitlements CloudKit 컨테이너 id (파일 반영)
-- [ ] **Xcode UI 필요(남음)**: Config/*.xcconfig를 Debug/Release 구성에 지정 · SPM(NMapsMap 3.21.0) 추가 · CloudKit capability 활성화(컨테이너 등록) (→ ARCHITECTURE 부록 A)
+- [x] **Xcode UI**: xcconfig(`passage/App/Config/`)를 Debug/Release 구성에 지정 · SPM(NMapsMap 3.21.0) · CloudKit capability — 완료. (xcconfig는 소스 폴더 안이라 target membership 예외로 번들 제외 → 시크릿 유출 방지)
 
 ## Phase 1 — MVP 핵심
 순서는 데이터 흐름을 따른다: **책 → 세션 → 장소 → 회상**.

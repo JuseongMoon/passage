@@ -53,7 +53,7 @@
 - **트레이드오프**: MVP에선 사진이 기기 로컬(타 기기에 미동기화 → placeholder). **재검토**: Phase 2에 `CloudImageStore`(CKAsset)로 교체 — 프로토콜 덕에 Feature 코드 불변.
 
 ### #10 — 시크릿 관리: gitignored Secrets.xcconfig ✅
-- **결정**: 네이버 키 등은 `Config/Secrets.xcconfig`(gitignore)에 두고 Info.plist `$()` 치환으로 주입. `.example` 템플릿 커밋.
+- **결정**: 네이버 키 등은 `passage/App/Config/Secrets.xcconfig`(gitignore)에 두고 Info.plist `$()` 치환으로 주입. `.example` 템플릿 커밋. 소스 폴더 안이므로 xcconfig들을 **target membership 예외**(pbxproj)로 두어 앱 번들 유출을 막는다.
 - **이유**: DronePass 검증 패턴. 코드/저장소에 시크릿 노출 방지.
 - **영향**: 새 환경은 `.example` 복사 후 값 입력. 값 하드코딩 금지.
 

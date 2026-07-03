@@ -55,10 +55,9 @@ passage/
 │   │   └── Auth/                 AuthService(protocol) + DummyAuthService
 │   ├── DesignSystem/             Theme · Components · Modifiers  (→ UI_GUIDE.md)
 │   └── Extensions/               Date+ · View+ · …
+├── App/Config/                   Debug/Release.xcconfig · Secrets.xcconfig(gitignored)
+│                                 ↑ 소스 폴더 안 → target membership 예외(pbxproj)로 앱 번들 제외(시크릿 유출 방지)
 └── Resources/                    Assets.xcassets · Localizable.xcstrings
-
-(저장소 루트 — passage/ 소스 폴더 밖에 두어 빌드에 포함되지 않게 한다)
-Config/                           Debug/Release.xcconfig · Secrets.xcconfig(gitignored)
 ```
 > 각 Feature 폴더는 내부에 `Views/`와 자신의 Store를 둔다. 재사용 컴포넌트만 `Core/DesignSystem`으로 승격.
 
@@ -231,7 +230,7 @@ protocol ImageStore: Sendable {
 문서화만으로 되지 않는, Xcode UI가 필요한 작업. (순서대로)
 
 1. **폴더/그룹 생성** — §3 구조대로 그룹 생성, 템플릿 `Item.swift`·`ContentView.swift`는 실제 구현 시 교체.
-2. **xcconfig 연결** — Project → Info → Configurations → Debug/Release에 `Config/Debug.xcconfig`·`Release.xcconfig` 지정.
+2. **xcconfig 연결** ✅ — `passage/App/Config/Debug.xcconfig`·`Release.xcconfig`를 Debug/Release 구성에 지정 완료. 소스 폴더 안이라 pbxproj membership 예외로 번들에서 제외(시크릿 유출 방지).
 3. **Info.plist 키 추가** (`$()` 치환):
    - `NMFNcpKeyId = $(NAVER_MAP_CLIENT_ID)`  (지도 SDK 자동 인증)
    - `NAVER_MAP_CLIENT_ID = $(NAVER_MAP_CLIENT_ID)` · `NAVER_MAP_CLIENT_SECRET = $(NAVER_MAP_CLIENT_SECRET)`  (REST용)

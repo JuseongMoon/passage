@@ -36,7 +36,7 @@ passage/
     Services/     Naver · BookSearch · Location · ImageStore · Auth
     DesignSystem/ Theme · Components · Modifiers
     Extensions/
-Config/        (저장소 루트, passage/ 밖) *.xcconfig · Secrets.xcconfig(gitignored)
+  App/Config/  *.xcconfig · Secrets.xcconfig(gitignored) — target membership 예외로 번들 제외
   Resources/   Assets · Localizable(.xcstrings)
 ```
 
