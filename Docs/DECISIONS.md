@@ -67,11 +67,11 @@
 - **이유**: 수년 유지보수에서 모델은 반드시 변한다. 나중에 도입하면 초기 스키마 버저닝 소급이 어렵다.
 - **영향**: 필드 변경은 새 `SchemaVn` + `MigrationStage`. 파괴적 변경 전 확인.
 
-### #13 — BookSearch 제공자: Google Books + API 키 🔵
-- **결정**: `BookSearchService` 프로토콜 뒤 `GoogleBooksSearchService`. 파싱(테스트 3종)·검색 UI(`BookSearchView`)·표지(`BookCoverView`) 구현·검증 완료.
-- **발견(2026-07-04)**: **키 없는 Google Books는 공용 익명 할당량 초과(HTTP 429)** 로 실사용 불가 → **무료 API 키 필요**(Google Cloud Console, 하루 1000). `GOOGLE_BOOKS_API_KEY`를 Secrets.xcconfig·Info.plist에 넣으면 즉시 동작(코드는 키 있으면 자동 사용).
-- **대안(프로토콜 유지로 교체 저렴)**: **Naver 책 검색**(developers.naver.com 별도 등록 — 지도용 Cloud Platform과 다름, 한국 메타데이터·표지 최적) 또는 Kakao. 한국 앱이면 Naver 유력.
-- 수동 등록(`AddBookView` "직접 입력")은 항상 가능한 오프라인 경로.
+### #13 — BookSearch 제공자: Naver 책 검색 ✅
+- **결정**: `BookSearchService` 프로토콜 뒤 **`NaverBookSearchService`**(기본). `GoogleBooksSearchService`는 대안으로 보존.
+- **이유**: 무료 · **하루 25,000건**(Google 키 1,000의 25배) · 사업자등록 불필요(네이버 개인 계정) · **한국 도서 메타데이터·표지 최적**. (키 없는 Google Books는 공용 할당량 HTTP 429로 실사용 불가했음)
+- **인증**: developers.naver.com '검색' 앱 등록 → Client ID/Secret. `NAVER_SEARCH_CLIENT_ID/SECRET`을 Secrets.xcconfig에 넣고 Info.plist `$()` 치환으로 주입(헤더 `X-Naver-Client-Id/Secret`). **지도용 Cloud Platform 키와 별개 시스템.**
+- 파싱 테스트 3종(`<b>`태그·HTML 엔티티·ISBN13·공저 `^`)·검색 UI(`BookSearchView`)·표지(`BookCoverView`) 완료. 수동 등록("직접 입력")은 오프라인 경로.
 
 ---
 ### #14 — Swift 6 + Main Actor 기본 격리 ✅

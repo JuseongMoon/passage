@@ -8,10 +8,6 @@
 
 import Foundation
 
-enum BookSearchError: Error, Sendable {
-    case invalidResponse
-}
-
 @MainActor
 final class GoogleBooksSearchService: BookSearchService {
     private let session: URLSession

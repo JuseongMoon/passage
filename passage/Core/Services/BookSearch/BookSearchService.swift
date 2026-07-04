@@ -22,6 +22,11 @@ protocol BookSearchService: Sendable {
     func lookup(isbn: String) async throws -> BookSearchResult?
 }
 
+enum BookSearchError: Error, Sendable {
+    case missingCredentials
+    case invalidResponse
+}
+
 /// Phase 0 스텁: 실제 검색은 Phase 1에서 구현.
 struct StubBookSearchService: BookSearchService {
     func search(query: String) async throws -> [BookSearchResult] { [] }
