@@ -2,8 +2,8 @@
 //  NewPlaceView.swift
 //  passage
 //
-//  새 장소 생성. 이름(필수) · 지도 지점/현재 위치(선택) · 주소 자동(reverse-geocode) · 사진(선택).
-//  사진은 LocalImageStore(로컬 파일)에 저장하고 참조만 Place에 담는다.
+//  새 장소 생성. 장소 검색(POI) · 지도 지점/현재 위치 · 주소 자동(reverse-geocode) · 사진(선택).
+//  사진은 PlacePhoto(externalStorage)로 저장 → CloudKit 자동 동기화.
 //
 
 import SwiftUI
@@ -27,6 +27,11 @@ struct NewPlaceView: View {
     @State private var isLocating = false
     @State private var isGeocoding = false
 
+    @State private var searchQuery = ""
+    @State private var searchResults: [PlaceSearchResult] = []
+    @State private var isSearching = false
+    @State private var skipNextGeocode = false
+
     private var canSave: Bool {
         !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isSaving
     }
@@ -34,6 +39,34 @@ struct NewPlaceView: View {
     var body: some View {
         NavigationStack {
             Form {
+                Section {
+                    HStack {
+                        TextField("장소 이름으로 검색", text: $searchQuery)
+                            .submitLabel(.search)
+                            .onSubmit { runPlaceSearch() }
+                        if isSearching { ProgressView() }
+                    }
+                    ForEach(searchResults) { result in
+                        Button {
+                            apply(result)
+                        } label: {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(result.name)
+                                    .foregroundStyle(.primary)
+                                if let detail = result.roadAddress ?? result.address {
+                                    Text(detail)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                    }
+                } header: {
+                    Text("장소 검색")
+                } footer: {
+                    Text("이름으로 찾아 위치·주소를 자동으로 채워요.")
+                }
+
                 Section("장소") {
                     TextField("이름", text: $name)
                 }
@@ -101,6 +134,10 @@ struct NewPlaceView: View {
             }
             .onChange(of: selectedPoint) { _, newValue in
                 guard let newValue else { return }
+                if skipNextGeocode {
+                    skipNextGeocode = false   // 검색 결과가 채운 주소를 보존
+                    return
+                }
                 reverseGeocode(newValue)
             }
             .onChange(of: photoItem) { _, newItem in
@@ -130,6 +167,24 @@ struct NewPlaceView: View {
             isGeocoding = false
             if let resolved { address = resolved }
         }
+    }
+
+    private func runPlaceSearch() {
+        let query = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return }
+        isSearching = true
+        Task {
+            searchResults = (try? await dependencies.placeSearch.search(query: query)) ?? []
+            isSearching = false
+        }
+    }
+
+    private func apply(_ result: PlaceSearchResult) {
+        name = result.name
+        address = result.roadAddress ?? result.address ?? ""
+        skipNextGeocode = true
+        selectedPoint = MapPoint(latitude: result.latitude, longitude: result.longitude)
+        searchResults = []
     }
 
     private func save() {
