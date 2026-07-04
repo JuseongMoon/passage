@@ -40,9 +40,9 @@
 - [ ] (남음) 대화형 지도 탭 플로우는 Xcode 실사용 확인 권장(라이브 키+네트워크). reverse-geocode DTO는 실응답으로 보정 필요.
 
 ### 1d. Library & Journal (회상)
-- [ ] Library: 책별 **총 독서시간 · 세션 수 · 읽은 장소** (세션에서 집계)
-- [ ] Journal **Book View**(책 중심) · **Place View**(장소 중심) 타임라인
-- [ ] Memory 상세(책·장소·시간·페이지·사진)
+- [x] Library: 책 카드에 총 독서시간·세션 수 표시(읽은 장소는 책 상세에서) — 세션 파생
+- [x] Journal **책 렌즈** · **장소 렌즈**(세그먼트) 그룹 타임라인 — 그룹핑 로직 테스트 2종, 실행 렌더 검증
+- [x] Memory 상세(책·장소·시간·페이지·사진) · `StoredImageView`로 로컬 사진 로드
 
 ### 1e. 마감
 - [ ] Settings + **Sign in with Apple 더미 버튼**

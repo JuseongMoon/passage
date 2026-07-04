@@ -2,7 +2,7 @@
 //  JournalView.swift
 //  passage
 //
-//  저널 — 독서 기억의 타임라인. Phase 1에서 Book View / Place View로 확장. 상세 구현은 Phase 1.
+//  저널 — 독서 기억의 타임라인. 책/장소 렌즈로 묶어 본다. 탭하면 Memory 상세.
 //
 
 import SwiftUI
@@ -15,6 +15,8 @@ struct JournalView: View {
         order: .reverse
     ) private var sessions: [ReadingSession]
 
+    @State private var lens: JournalLens = .book
+
     var body: some View {
         NavigationStack {
             Group {
@@ -25,21 +27,29 @@ struct JournalView: View {
                         Text("독서를 마치면 이곳에 기억이 쌓여요.")
                     }
                 } else {
-                    List(sessions) { session in
-                        VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
-                            Text(session.book?.title ?? "제목 없는 책")
-                                .font(.headline)
-                                .fontDesign(.serif)
-                            HStack(spacing: Theme.Spacing.xs) {
-                                Text(session.duration.readableDuration)
-                                if let place = session.place {
-                                    Text("· \(place.name)")
+                    VStack(spacing: 0) {
+                        Picker("보기", selection: $lens) {
+                            ForEach(JournalLens.allCases) { lens in
+                                Text(lens.label).tag(lens)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        .padding(.horizontal, Theme.Spacing.md)
+                        .padding(.vertical, Theme.Spacing.xs)
+
+                        List {
+                            ForEach(MemoryOrganizer.grouped(sessions, by: lens)) { group in
+                                Section(group.title) {
+                                    ForEach(group.sessions) { session in
+                                        NavigationLink {
+                                            MemoryDetailView(session: session)
+                                        } label: {
+                                            MemoryRow(session: session, showsBook: lens == .place)
+                                        }
+                                    }
                                 }
                             }
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
                         }
-                        .padding(.vertical, Theme.Spacing.xxs)
                     }
                 }
             }
@@ -50,5 +60,5 @@ struct JournalView: View {
 
 #Preview {
     JournalView()
-        .modelContainer(PassageModelContainer.makePreview())
+        .withPreviewEnvironment()
 }

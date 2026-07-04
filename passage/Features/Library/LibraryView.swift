@@ -54,7 +54,9 @@ struct LibraryView: View {
     }
 
     private func bookRow(_ book: Book) -> some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
+        let completed = (book.sessions ?? []).filter { $0.endDate != nil }
+        let totalTime = completed.reduce(0) { $0 + $1.duration }
+        return VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
             Text(book.title)
                 .font(.headline)
                 .fontDesign(.serif)
@@ -62,6 +64,11 @@ struct LibraryView: View {
                 Text(book.author)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
+            }
+            if !completed.isEmpty {
+                Text("\(totalTime.readableDuration) · \(completed.count)세션")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
             }
         }
         .padding(.vertical, Theme.Spacing.xxs)
