@@ -26,6 +26,10 @@ nonisolated final class Book {
     @Relationship(deleteRule: .cascade, inverse: \ReadingSession.book)
     var sessions: [ReadingSession]? = []
 
+    // 이 책에서 남긴 인용구. 책 삭제 시 함께 삭제.
+    @Relationship(deleteRule: .cascade, inverse: \Quote.book)
+    var quotes: [Quote]? = []
+
     init(
         title: String = "",
         author: String = "",

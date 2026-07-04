@@ -12,6 +12,7 @@ import SwiftData
 struct BookDetailView: View {
     @Environment(ReadingSessionController.self) private var sessionController
     let book: Book
+    @State private var addingQuote = false
 
     private var completedSessions: [ReadingSession] {
         (book.sessions ?? []).filter { $0.endDate != nil }
@@ -28,6 +29,9 @@ struct BookDetailView: View {
             }
         }
         return result
+    }
+    private var sortedQuotes: [Quote] {
+        (book.quotes ?? []).sorted { $0.dateCreated > $1.dateCreated }
     }
 
     var body: some View {
@@ -75,9 +79,32 @@ struct BookDetailView: View {
                 LabeledContent("세션", value: "\(completedSessions.count)회")
                 LabeledContent("읽은 장소", value: placeNames.isEmpty ? "아직 없음" : placeNames.joined(separator: ", "))
             }
+
+            Section("인용구") {
+                ForEach(sortedQuotes) { quote in
+                    VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
+                        Text(quote.text)
+                            .fontDesign(.serif)
+                        if let page = quote.page {
+                            Text("\(page)p")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+                    .padding(.vertical, Theme.Spacing.xxs)
+                }
+                Button {
+                    addingQuote = true
+                } label: {
+                    Label("인용구 추가", systemImage: "quote.opening")
+                }
+            }
         }
         .navigationTitle(book.title)
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $addingQuote) {
+            AddQuoteView(book: book)
+        }
     }
 }
 

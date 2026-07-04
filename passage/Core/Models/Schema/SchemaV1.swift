@@ -13,6 +13,6 @@ enum SchemaV1: VersionedSchema {
     static var versionIdentifier: Schema.Version { Schema.Version(1, 0, 0) }
 
     static var models: [any PersistentModel.Type] {
-        [Book.self, ReadingSession.self, Place.self]
+        [Book.self, ReadingSession.self, Place.self, Quote.self]
     }
 }
