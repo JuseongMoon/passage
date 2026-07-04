@@ -3,7 +3,7 @@
 //  passage
 //
 //  설정 — 계정(Sign in with Apple 더미) · 앱 정보.
-//  로그인은 더미 버튼만 두고, 실제 연동은 나머지 완성 후 진행. (DECISIONS #11)
+//  로그인은 더미 버튼만 두고, 실제 연동은 후속(Phase 2). (DECISIONS #11)
 //
 
 import SwiftUI
@@ -15,20 +15,21 @@ struct SettingsView: View {
             List {
                 Section {
                     SignInWithAppleButton(.signIn) { _ in
-                        // Phase 2에서 실제 요청 구성
+                        // 실제 요청 구성은 Phase 2
                     } onCompletion: { _ in
-                        // Phase 2에서 자격 증명 처리
+                        // 자격 증명 처리는 Phase 2
                     }
                     .signInWithAppleButtonStyle(.black)
-                    .frame(height: 48)
+                    .frame(height: 50)
+                    .frame(maxWidth: 375)   // ASAuthorizationAppleIDButton 최대 폭(넓은 화면 제약 충돌 방지)
                     .clipShape(.rect(cornerRadius: Theme.Radius.md, style: .continuous))
+                    .frame(maxWidth: .infinity, alignment: .center)
                     .disabled(true)   // 더미: 아직 비활성
-                    .listRowInsets(EdgeInsets())
-                    .listRowBackground(Color.clear)
+                    .accessibilityLabel("Apple로 로그인 (준비 중)")
                 } header: {
                     Text("계정")
                 } footer: {
-                    Text("로그인은 준비 중이에요. 데이터는 iCloud로 안전하게 동기화됩니다.")
+                    Text("로그인은 곧 지원될 예정이에요. 지금도 기록은 iCloud로 안전하게 동기화됩니다.")
                 }
 
                 Section("정보") {
@@ -42,8 +43,7 @@ struct SettingsView: View {
 
 private extension Bundle {
     static var appVersion: String {
-        let version = main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—"
-        return version
+        main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—"
     }
 }
 

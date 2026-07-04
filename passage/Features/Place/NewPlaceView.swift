@@ -24,6 +24,8 @@ struct NewPlaceView: View {
     @State private var photoItem: PhotosPickerItem?
     @State private var photoData: Data?
     @State private var isSaving = false
+    @State private var isLocating = false
+    @State private var isGeocoding = false
 
     private var canSave: Bool {
         !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isSaving
@@ -40,13 +42,30 @@ struct NewPlaceView: View {
                     NaverMapView(selectedPoint: $selectedPoint)
                         .frame(height: 220)
                         .listRowInsets(EdgeInsets())
+                        .accessibilityLabel("지도. 눌러서 읽은 위치를 선택하세요.")
                     Button {
                         useCurrentLocation()
                     } label: {
-                        Label("현재 위치 사용", systemImage: "location.fill")
+                        HStack {
+                            Label("현재 위치 사용", systemImage: "location.fill")
+                            if isLocating {
+                                Spacer()
+                                ProgressView()
+                            }
+                        }
                     }
-                    if !address.isEmpty {
-                        Text(address).font(.footnote).foregroundStyle(.secondary)
+                    .disabled(isLocating)
+                    if isGeocoding {
+                        HStack(spacing: Theme.Spacing.xs) {
+                            ProgressView()
+                            Text("주소를 찾는 중…")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                    } else if !address.isEmpty {
+                        Text(address)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
                     }
                 } header: {
                     Text("위치 (선택)")
@@ -66,6 +85,7 @@ struct NewPlaceView: View {
                             .frame(maxWidth: .infinity)
                             .clipped()
                             .listRowInsets(EdgeInsets())
+                            .accessibilityLabel("선택한 사진")
                     }
                 }
             }
@@ -90,21 +110,25 @@ struct NewPlaceView: View {
     }
 
     private func useCurrentLocation() {
+        isLocating = true
         Task {
             dependencies.location.requestWhenInUseAuthorization()
-            if let coordinate = try? await dependencies.location.currentLocation() {
+            let coordinate = try? await dependencies.location.currentLocation()
+            isLocating = false
+            if let coordinate {
                 selectedPoint = MapPoint(latitude: coordinate.latitude, longitude: coordinate.longitude)
             }
         }
     }
 
     private func reverseGeocode(_ point: MapPoint) {
+        isGeocoding = true
         Task {
-            if let resolved = try? await dependencies.geocoding.reverseGeocode(
+            let resolved = try? await dependencies.geocoding.reverseGeocode(
                 latitude: point.latitude, longitude: point.longitude
-            ) {
-                address = resolved
-            }
+            )
+            isGeocoding = false
+            if let resolved { address = resolved }
         }
     }
 

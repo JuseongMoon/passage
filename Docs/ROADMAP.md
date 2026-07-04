@@ -45,9 +45,9 @@
 - [x] Memory 상세(책·장소·시간·페이지·사진) · `StoredImageView`로 로컬 사진 로드
 
 ### 1e. 마감
-- [ ] Settings + **Sign in with Apple 더미 버튼**
-- [ ] Empty/Loading/Error 상태 정리(→ UI_GUIDE) · 접근성/다크모드 검수
-- [ ] CloudKit 동기화 실기기 검증 · CloudKit 스키마 Production Deploy
+- [x] Settings + Sign in with Apple 더미 버튼 (레이아웃 375pt 캡·접근성 라벨) — 실제 연동은 Phase 2(applesignin capability 필요)
+- [x] Loading(지오코딩·현재위치) 상태 · Empty 상태 · 접근성(VoiceOver 라벨) · **다크모드 검수(실행 스크린샷 확인)**
+- [ ] CloudKit 동기화 실기기 검증 · Production Deploy — iOS 27 베타 기기 이슈로 보류(iOS 26.5/정식판에서 진행)
 
 ## Phase 2 — 결(depth) 더하기 (비경쟁 원칙 유지)
 - [ ] **사진 CloudKit 동기화**(`ImageStore` → `CloudImageStore` 교체)
