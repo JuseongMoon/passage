@@ -55,11 +55,11 @@ struct MemoryDetailView: View {
                     if let address = place.address, !address.isEmpty {
                         Text(address).font(.footnote).foregroundStyle(.secondary)
                     }
-                    if let refs = place.photoRefs, !refs.isEmpty {
+                    if let photos = place.photos, !photos.isEmpty {
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: Theme.Spacing.xs) {
-                                ForEach(refs, id: \.self) { ref in
-                                    StoredImageView(ref: ref)
+                                ForEach(photos.sorted { $0.dateAdded < $1.dateAdded }) { photo in
+                                    PhotoThumbnail(data: photo.data)
                                         .frame(width: 140, height: 140)
                                         .clipShape(.rect(cornerRadius: Theme.Radius.md, style: .continuous))
                                 }

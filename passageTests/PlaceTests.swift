@@ -62,4 +62,23 @@ struct PlaceTests {
         let afterDelete = try await store.loadData(id: ref)
         #expect(afterDelete == nil)
     }
+
+    @Test func placePhotoPersistsAndCascades() throws {
+        let container = PassageModelContainer.makePreview()
+        let context = container.mainContext
+        let place = Place(name: "카페")
+        context.insert(place)
+        let data = Data([0x01, 0x02, 0x03])
+        context.insert(PlacePhoto(data: data, place: place))
+        try context.save()
+
+        let photos = try context.fetch(FetchDescriptor<PlacePhoto>())
+        #expect(photos.count == 1)
+        #expect(photos.first?.data == data)
+        #expect(photos.first?.place?.name == "카페")
+
+        context.delete(place)          // 장소 삭제 시 사진도 cascade 삭제
+        try context.save()
+        #expect(try context.fetch(FetchDescriptor<PlacePhoto>()).isEmpty)
+    }
 }

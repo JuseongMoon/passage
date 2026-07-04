@@ -17,12 +17,15 @@ nonisolated final class Place {
     var latitude: Double?
     var longitude: Double?
     var address: String?
-    var photoRefs: [String]? = []       // 로컬 ImageStore 참조 목록(바이너리는 DB 밖)
     var dateCreated: Date = Date()
 
     // 장소 삭제 시 세션의 place만 nullify(기억은 남고 장소만 사라짐).
     @Relationship(deleteRule: .nullify, inverse: \ReadingSession.place)
     var sessions: [ReadingSession]? = []
+
+    // 사진은 externalStorage(→ CloudKit CKAsset 자동 동기화). 장소 삭제 시 함께 삭제.
+    @Relationship(deleteRule: .cascade, inverse: \PlacePhoto.place)
+    var photos: [PlacePhoto]? = []
 
     init(name: String = "", latitude: Double? = nil, longitude: Double? = nil, address: String? = nil) {
         self.name = name

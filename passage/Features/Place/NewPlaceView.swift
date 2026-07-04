@@ -134,21 +134,18 @@ struct NewPlaceView: View {
 
     private func save() {
         isSaving = true
-        Task {
-            var photoRefs: [String] = []
-            if let photoData, let ref = try? await dependencies.imageStore.save(photoData) {
-                photoRefs = [ref]
-            }
-            let place = Place(
-                name: name.trimmingCharacters(in: .whitespacesAndNewlines),
-                latitude: selectedPoint?.latitude,
-                longitude: selectedPoint?.longitude,
-                address: address.isEmpty ? nil : address
-            )
-            place.photoRefs = photoRefs
-            modelContext.insert(place)
-            controller.assignPlace(place, to: session)
-            dismiss()
+        let place = Place(
+            name: name.trimmingCharacters(in: .whitespacesAndNewlines),
+            latitude: selectedPoint?.latitude,
+            longitude: selectedPoint?.longitude,
+            address: address.isEmpty ? nil : address
+        )
+        modelContext.insert(place)
+        // 사진은 externalStorage 모델로 저장 → CloudKit 자동 동기화.
+        if let photoData {
+            modelContext.insert(PlacePhoto(data: photoData, place: place))
         }
+        controller.assignPlace(place, to: session)
+        dismiss()
     }
 }

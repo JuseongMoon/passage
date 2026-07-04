@@ -47,10 +47,11 @@
 - **이유**: 국내 장소·주소 품질 우수, 검증된 연동 자산 보유. SDK가 UIKit 기반이라 브리지 불가피.
 - **트레이드오프**: MVP는 지도 지점 선택 + reverse-geocode까지. **키워드 POI 검색은 별도 API(Naver Developers)** 필요 → Phase 2.
 
-### #9 — 사진: 로컬 저장 우선(ImageStore 추상화) 🔵
-- **결정**: 사진은 `ImageStore` 프로토콜 뒤에 두고, MVP는 파일 기반 `LocalImageStore`(Application Support). SwiftData엔 참조 id만.
-- **이유**: 요구사항("로컬 저장") 충족, CloudKit 용량/동기화 복잡성 회피, 바이너리를 DB 밖으로.
-- **트레이드오프**: MVP에선 사진이 기기 로컬(타 기기에 미동기화 → placeholder). **재검토**: Phase 2에 `CloudImageStore`(CKAsset)로 교체 — 프로토콜 덕에 Feature 코드 불변.
+### #9 — 사진 저장: MVP 로컬 → Phase 2 SwiftData externalStorage ✅
+- **MVP(Phase 1)**: 파일 기반 `LocalImageStore`(Application Support), SwiftData엔 참조 id만. 로컬 요구 충족.
+- **Phase 2 전환(2026-07-04)**: 장소 사진을 **`PlacePhoto` @Model + `@Attribute(.externalStorage)`** 로 이동 → **SwiftData+CloudKit이 CKAsset으로 기기 간 자동 동기화.** 별도 `CloudImageStore`/수동 CKAsset보다 idiomatic·저유지보수. `StoredImageView` 제거, `PhotoThumbnail(data:)`로 표시.
+- `ImageStore`/`LocalImageStore`는 향후 표지 로컬 캐시용으로 보존(현재 앱 미사용).
+- **트레이드오프**: 실기기 2대 동기화 검증은 iCloud 계정+기기 필요.
 
 ### #10 — 시크릿 관리: gitignored Secrets.xcconfig ✅
 - **결정**: 네이버 키 등은 `passage/App/Config/Secrets.xcconfig`(gitignore)에 두고 Info.plist `$()` 치환으로 주입. `.example` 템플릿 커밋. 소스 폴더 안이므로 xcconfig들을 **target membership 예외**(pbxproj)로 두어 앱 번들 유출을 막는다.

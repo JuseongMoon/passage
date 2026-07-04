@@ -50,7 +50,7 @@
 - [ ] CloudKit 동기화 실기기 검증 · Production Deploy — iOS 27 베타 기기 이슈로 보류(iOS 26.5/정식판에서 진행)
 
 ## Phase 2 — 결(depth) 더하기 (비경쟁 원칙 유지)
-- [ ] **사진 CloudKit 동기화**(`ImageStore` → `CloudImageStore` 교체)
+- [x] **사진 CloudKit 동기화** — `PlacePhoto`(`@Attribute(.externalStorage)` → CKAsset 자동 동기화). NewPlaceView 저장·MemoryDetail 표시 전환, `StoredImageView` 제거. (실기기 2대 동기화 검증은 환경 필요)
 - [ ] **실제 Sign in with Apple** 연동(`AuthService` 실구현)
 - [x] 세션 회고 메모(`NoteEditorView`) + **인용구/하이라이트**(`Quote` 모델 · `AddQuoteView` · BookDetail 섹션, 스키마에 Quote 추가)
 - [ ] 장소 **키워드 검색(POI)** (Naver Developers 등록)
