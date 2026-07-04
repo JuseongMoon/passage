@@ -15,14 +15,14 @@ final class AppDependencies {
     let imageStore: any ImageStore
     let geocoding: any GeocodingService
     let bookSearch: any BookSearchService
-    let auth: any AuthService
+    let auth: AuthStore
     let location: LocationService
 
     init(
         imageStore: any ImageStore = LocalImageStore(),
         geocoding: any GeocodingService = NaverMapService(),
         bookSearch: any BookSearchService = NaverBookSearchService(),
-        auth: any AuthService = DummyAuthService(),
+        auth: AuthStore = AuthStore(),
         location: LocationService = LocationService()
     ) {
         self.imageStore = imageStore

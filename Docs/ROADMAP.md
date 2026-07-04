@@ -51,7 +51,7 @@
 
 ## Phase 2 — 결(depth) 더하기 (비경쟁 원칙 유지)
 - [x] **사진 CloudKit 동기화** — `PlacePhoto`(`@Attribute(.externalStorage)` → CKAsset 자동 동기화). NewPlaceView 저장·MemoryDetail 표시 전환, `StoredImageView` 제거. (실기기 2대 동기화 검증은 환경 필요)
-- [ ] **실제 Sign in with Apple** 연동(`AuthService` 실구현)
+- [x] **실제 Sign in with Apple** — `AuthStore`(자격증명 처리·영속·복원·재로그인 값 보존) · SettingsView 실버튼(다크모드) · applesignin entitlement · 테스트 3종. (기기 로그인: 'Sign in with Apple' capability 프로비저닝 필요)
 - [x] 세션 회고 메모(`NoteEditorView`) + **인용구/하이라이트**(`Quote` 모델 · `AddQuoteView` · BookDetail 섹션, 스키마에 Quote 추가)
 - [ ] 장소 **키워드 검색(POI)** (Naver Developers 등록)
 - [x] BookSearch 제공자 → Naver 책 검색 확정·구현 (#13)

@@ -58,10 +58,11 @@
 - **이유**: DronePass 검증 패턴. 코드/저장소에 시크릿 노출 방지.
 - **영향**: 새 환경은 `.example` 복사 후 값 입력. 값 하드코딩 금지.
 
-### #11 — Sign in with Apple: MVP 더미 🔵
-- **결정**: MVP는 더미 버튼만. `AuthService` 프로토콜로 감싸 실제 연동은 후속.
-- **이유**: 데이터 정체성은 이미 iCloud(CloudKit)에 묶임 → 로그인은 데이터 게이팅용이 아니라 향후 계정/프로필용. 나머지 완성 후 연결.
-- **트레이드오프**: 초기엔 로그인 무동작. 프로토콜 경계로 교체 비용 최소화.
+### #11 — Sign in with Apple: MVP 더미 → Phase 2 실연동 ✅
+- **MVP(Phase 1)**: 더미 버튼(비활성).
+- **Phase 2 전환(2026-07-04)**: `AuthStore`(@Observable @MainActor) — `SignInWithAppleButton` 완료 콜백에서 자격증명(user id·이름·이메일) 처리, UserDefaults 영속·복원, **재로그인 시 이름/이메일 보존**(Apple은 최초 로그인만 제공), `getCredentialState`로 취소 감지 로그아웃. `com.apple.developer.applesignin` entitlement 추가. `AuthService` 프로토콜/`DummyAuthService`는 제거(구체 @Observable 스토어로).
+- **이유**: 데이터 정체성은 iCloud(CloudKit)에 묶이므로 로그인은 게이팅이 아니라 프로필/계정 표시용.
+- **트레이드오프**: 기기 로그인은 'Sign in with Apple' capability 프로비저닝 필요. userID는 UserDefaults(비민감) — 강화 시 Keychain.
 
 ### #12 — VersionedSchema + MigrationPlan 1일차 도입 ✅
 - **결정**: 처음부터 `SchemaV1` + `PassageMigrationPlan` 구성.
