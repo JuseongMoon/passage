@@ -2,7 +2,7 @@
 //  RootView.swift
 //  passage
 //
-//  루트 탭 셸(서재 · 저널 · 설정) + 전역 활성 세션 표시.
+//  루트 탭 셸(서재 · 저널 · 회고 · 설정) + 전역 활성 세션 표시.
 //  독서 중이면 어느 화면에서든 ActiveSessionView를 덮어 띄운다. (ARCHITECTURE §9)
 //
 
@@ -19,6 +19,9 @@ struct RootView: View {
             }
             Tab("저널", systemImage: "book.closed") {
                 JournalView()
+            }
+            Tab("회고", systemImage: "sparkles") {
+                ReflectionView()
             }
             Tab("설정", systemImage: "gearshape") {
                 SettingsView()

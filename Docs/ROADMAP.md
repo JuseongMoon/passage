@@ -58,7 +58,7 @@
 
 ## Phase 3 — 확장 (출시 후)
 - [ ] 위젯 · 활성 세션 **Live Activity**
-- [ ] 잔잔한 회고(연말 되돌아보기 — 수치·경쟁 없이)
+- [x] 잔잔한 회고 — `ReflectionView`(회고 탭): 연도별 **함께한 책·마음에 남은 구절·머문 곳**. 수치·순위·경쟁 없이. `ReflectionOrganizer` 집계 테스트·실행 확인
 - [ ] iPad/Mac 최적화 · 내보내기(export) · Shortcuts
 - [ ] 테마/표지 커스터마이즈
 
