@@ -70,4 +70,17 @@ struct ReadingSessionTests {
         #expect(controller.isReading)
         #expect(controller.activeSession != nil)
     }
+
+    @Test func sessionNotePersists() throws {
+        let container = PassageModelContainer.makePreview()
+        let context = container.mainContext
+        let session = ReadingSession()
+        context.insert(session)
+
+        session.note = "이 장면이 오래 남았다"
+        try context.save()
+
+        let fetched = try context.fetch(FetchDescriptor<ReadingSession>())
+        #expect(fetched.first?.note == "이 장면이 오래 남았다")
+    }
 }

@@ -9,6 +9,7 @@ import SwiftUI
 
 struct MemoryDetailView: View {
     let session: ReadingSession
+    @State private var editingNote = false
 
     var body: some View {
         List {
@@ -30,6 +31,21 @@ struct MemoryDetailView: View {
                 LabeledContent("독서 시간", value: session.duration.readableDuration)
                 if let pageText {
                     LabeledContent("페이지", value: pageText)
+                }
+            }
+
+            Section("생각") {
+                if let note = session.note, !note.isEmpty {
+                    Text(note)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Button("편집") { editingNote = true }
+                        .font(.subheadline)
+                } else {
+                    Button {
+                        editingNote = true
+                    } label: {
+                        Label("메모 남기기", systemImage: "square.and.pencil")
+                    }
                 }
             }
 
@@ -56,6 +72,9 @@ struct MemoryDetailView: View {
         }
         .navigationTitle("기억")
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $editingNote) {
+            NoteEditorView(session: session)
+        }
     }
 
     private var pageText: String? {

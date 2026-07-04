@@ -52,9 +52,9 @@
 ## Phase 2 — 결(depth) 더하기 (비경쟁 원칙 유지)
 - [ ] **사진 CloudKit 동기화**(`ImageStore` → `CloudImageStore` 교체)
 - [ ] **실제 Sign in with Apple** 연동(`AuthService` 실구현)
-- [ ] 세션별 메모/인용구/하이라이트
+- [x] 세션 회고 메모(MemoryDetailView 편집 · `NoteEditorView`) — 인용구/하이라이트는 후속(SchemaV2)
 - [ ] 장소 **키워드 검색(POI)** (Naver Developers 등록)
-- [ ] BookSearch 제공자 재검토(Naver Books 등, 한국 메타데이터)
+- [x] BookSearch 제공자 → Naver 책 검색 확정·구현 (#13)
 
 ## Phase 3 — 확장 (출시 후)
 - [ ] 위젯 · 활성 세션 **Live Activity**
