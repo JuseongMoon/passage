@@ -48,7 +48,7 @@ struct LibraryView: View {
                 }
             }
             .sheet(isPresented: $showingAddBook) {
-                AddBookView()
+                BookSearchView()
             }
         }
     }
@@ -56,19 +56,23 @@ struct LibraryView: View {
     private func bookRow(_ book: Book) -> some View {
         let completed = (book.sessions ?? []).filter { $0.endDate != nil }
         let totalTime = completed.reduce(0) { $0 + $1.duration }
-        return VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
-            Text(book.title)
-                .font(.headline)
-                .fontDesign(.serif)
-            if !book.author.isEmpty {
-                Text(book.author)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-            if !completed.isEmpty {
-                Text("\(totalTime.readableDuration) · \(completed.count)세션")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
+        return HStack(spacing: Theme.Spacing.sm) {
+            BookCoverView(urlString: book.coverRemoteURL)
+                .frame(width: 40, height: 60)
+            VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
+                Text(book.title)
+                    .font(.headline)
+                    .fontDesign(.serif)
+                if !book.author.isEmpty {
+                    Text(book.author)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                if !completed.isEmpty {
+                    Text("\(totalTime.readableDuration) · \(completed.count)세션")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
             }
         }
         .padding(.vertical, Theme.Spacing.xxs)

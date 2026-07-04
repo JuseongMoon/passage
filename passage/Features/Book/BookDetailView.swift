@@ -33,19 +33,24 @@ struct BookDetailView: View {
     var body: some View {
         List {
             Section {
-                VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                    Text(book.title)
-                        .font(.title2)
-                        .fontDesign(.serif)
-                        .fontWeight(.semibold)
-                    if !book.author.isEmpty {
-                        Text(book.author).foregroundStyle(.secondary)
+                HStack(alignment: .top, spacing: Theme.Spacing.md) {
+                    BookCoverView(urlString: book.coverRemoteURL)
+                        .frame(width: 80, height: 120)
+                    VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                        Text(book.title)
+                            .font(.title3)
+                            .fontDesign(.serif)
+                            .fontWeight(.semibold)
+                        if !book.author.isEmpty {
+                            Text(book.author).foregroundStyle(.secondary)
+                        }
+                        if let isbn = book.isbn, !isbn.isEmpty {
+                            Text("ISBN \(isbn)")
+                                .font(.footnote)
+                                .foregroundStyle(.tertiary)
+                        }
                     }
-                    if let isbn = book.isbn, !isbn.isEmpty {
-                        Text("ISBN \(isbn)")
-                            .font(.footnote)
-                            .foregroundStyle(.tertiary)
-                    }
+                    Spacer()
                 }
                 .padding(.vertical, Theme.Spacing.xs)
             }

@@ -22,8 +22,8 @@
 
 ### 1a. Book
 - [x] 수동 등록(제목/저자/ISBN/페이지) · 책 상세(세션 파생 통계) · Library 목록/카드 — 빌드·데이터 테스트·실행 검증 완료
-- [ ] 검색 등록(`BookSearchService`, MVP: Google Books) · ISBN 조회 · 표지 표시
-- [ ] 책 삭제/편집 · 표지 이미지
+- [x] 검색 등록(`BookSearchView` + Google Books) · ISBN 조회 · 표지(`BookCoverView`) — 파싱 테스트 3종·빌드 그린. **활성화: `GOOGLE_BOOKS_API_KEY` 필요**(키 없으면 공용 할당량 429). 제공자 교체 가능(DECISIONS #13)
+- [ ] 책 삭제/편집
 
 ### 1b. Reading Session (Source of Truth)
 - [x] `ReadingSessionController`: Start/Stop/Cancel · 활성 세션 즉시 저장 · **앱 재시작 시 복원** — 로직 테스트 4종 통과

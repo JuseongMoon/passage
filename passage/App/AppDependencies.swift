@@ -21,7 +21,7 @@ final class AppDependencies {
     init(
         imageStore: any ImageStore = LocalImageStore(),
         geocoding: any GeocodingService = NaverMapService(),
-        bookSearch: any BookSearchService = StubBookSearchService(),
+        bookSearch: any BookSearchService = GoogleBooksSearchService(),
         auth: any AuthService = DummyAuthService(),
         location: LocationService = LocationService()
     ) {
