@@ -12,6 +12,8 @@
 	<string>$(NAVER_SEARCH_CLIENT_ID)</string>
 	<key>NAVER_SEARCH_CLIENT_SECRET</key>
 	<string>$(NAVER_SEARCH_CLIENT_SECRET)</string>
+	<key>ALADIN_TTB_KEY</key>
+	<string>$(ALADIN_TTB_KEY)</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>독서한 장소를 지도에 기록하기 위해 위치 정보를 사용합니다.</string>
 	<key>UIBackgroundModes</key>

@@ -12,13 +12,18 @@ import SwiftData
 struct PassageApp: App {
     @State private var dependencies: AppDependencies
     @State private var sessionController: ReadingSessionController
+    @State private var pageCountFiller: PageCountFiller
     private let modelContainer: ModelContainer
 
     init() {
         let container = PassageModelContainer.makeShared()
         modelContainer = container
-        _dependencies = State(initialValue: AppDependencies())
+        let dependencies = AppDependencies()
+        _dependencies = State(initialValue: dependencies)
         _sessionController = State(initialValue: ReadingSessionController(modelContext: container.mainContext))
+        _pageCountFiller = State(initialValue: PageCountFiller(
+            modelContext: container.mainContext, service: dependencies.pageCount
+        ))
     }
 
     var body: some Scene {
@@ -26,6 +31,7 @@ struct PassageApp: App {
             RootView()
                 .environment(dependencies)
                 .environment(sessionController)
+                .environment(pageCountFiller)
         }
         .modelContainer(modelContainer)
     }

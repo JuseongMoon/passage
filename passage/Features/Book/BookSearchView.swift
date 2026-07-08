@@ -11,6 +11,7 @@ import SwiftData
 
 struct BookSearchView: View {
     @Environment(AppDependencies.self) private var dependencies
+    @Environment(PageCountFiller.self) private var pageCountFiller
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
 
@@ -244,6 +245,9 @@ struct BookSearchView: View {
             coverRemoteURL: result.coverURL
         )
         modelContext.insert(book)
+        if result.pageCount == nil {   // 네이버 검색은 페이지 수 없음 → 보조 조회로 채움
+            pageCountFiller.fillIfNeeded(bookID: book.id, isbn: result.isbn)
+        }
         dismiss()
     }
 }
@@ -266,5 +270,6 @@ private struct PreviewBookSearch: BookSearchService {
 #Preview("검색 결과") {
     BookSearchView(previewQuery: "한")
         .environment(AppDependencies(bookSearch: PreviewBookSearch()))
-        .modelContainer(PassageModelContainer.makePreview())
+        .environment(PageCountFiller(modelContext: PreviewSupport.container.mainContext, service: StubPageCountService()))
+        .modelContainer(PreviewSupport.container)
 }

@@ -16,6 +16,7 @@ final class AppDependencies {
     let geocoding: any GeocodingService
     let bookSearch: any BookSearchService
     let placeSearch: any PlaceSearchService
+    let pageCount: any PageCountService
     let auth: AuthStore
     let location: LocationService
 
@@ -24,6 +25,10 @@ final class AppDependencies {
         geocoding: any GeocodingService = NaverMapService(),
         bookSearch: any BookSearchService = NaverBookSearchService(),
         placeSearch: any PlaceSearchService = NaverPlaceSearchService(),
+        pageCount: any PageCountService = CompositePageCountService(providers: [
+            AladinPageCountService(),
+            GoogleBooksPageCountService(service: GoogleBooksSearchService())
+        ]),
         auth: AuthStore = AuthStore(),
         location: LocationService = LocationService()
     ) {
@@ -31,6 +36,7 @@ final class AppDependencies {
         self.geocoding = geocoding
         self.bookSearch = bookSearch
         self.placeSearch = placeSearch
+        self.pageCount = pageCount
         self.auth = auth
         self.location = location
     }

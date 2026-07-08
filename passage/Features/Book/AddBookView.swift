@@ -13,6 +13,7 @@ import UIKit   // UIKeyboardType(.keyboardType) 사용
 struct AddBookView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @Environment(PageCountFiller.self) private var pageCountFiller
 
     @State private var title = ""
     @State private var author = ""
@@ -59,11 +60,15 @@ struct AddBookView: View {
             totalPageCount: Int(totalPages)
         )
         modelContext.insert(book)
+        if Int(totalPages) == nil {   // 페이지 수 안 넣었으면 ISBN으로 보조 조회
+            pageCountFiller.fillIfNeeded(bookID: book.id, isbn: isbn.isEmpty ? nil : isbn)
+        }
         dismiss()
     }
 }
 
 #Preview {
     AddBookView()
-        .modelContainer(PassageModelContainer.makePreview())
+        .environment(PageCountFiller(modelContext: PreviewSupport.container.mainContext, service: StubPageCountService()))
+        .modelContainer(PreviewSupport.container)
 }
