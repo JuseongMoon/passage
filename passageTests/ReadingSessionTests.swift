@@ -20,7 +20,8 @@ struct ReadingSessionTests {
         let book = Book(title: "데미안")
         container.mainContext.insert(book)
 
-        controller.start(book: book)
+        controller.beginReading(book: book)
+        controller.confirmStart(startPage: nil)
 
         #expect(controller.isReading)
         #expect(controller.activeSession?.book?.title == "데미안")
@@ -35,8 +36,10 @@ struct ReadingSessionTests {
         let book = Book(title: "데미안")
         container.mainContext.insert(book)
 
-        controller.start(book: book)
-        controller.stop(endPage: 42)
+        controller.beginReading(book: book)
+        controller.confirmStart(startPage: nil)
+        controller.endReading()
+        controller.finishEnded(startPage: nil, endPage: 42)
 
         #expect(!controller.isReading)
         let all = try container.mainContext.fetch(FetchDescriptor<ReadingSession>())
@@ -52,8 +55,9 @@ struct ReadingSessionTests {
         let book = Book(title: "데미안")
         container.mainContext.insert(book)
 
-        controller.start(book: book)
-        controller.cancel()
+        controller.beginReading(book: book)
+        controller.confirmStart(startPage: nil)
+        controller.cancelReading()
 
         #expect(!controller.isReading)
         let all = try container.mainContext.fetch(FetchDescriptor<ReadingSession>())

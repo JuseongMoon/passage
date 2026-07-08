@@ -30,6 +30,8 @@ enum PassagePalette {
     static let ticketDash = Color(light: 0xCECECE, dark: 0x4A4740)
     /// 진행률 바코드의 꺼진 틱.
     static let progressOff = Color(light: 0xD9D5CC, dark: 0x413D34)
+    /// 입력 필드 배경(라이트=흰색).
+    static let field = Color(light: 0xFFFFFF, dark: 0x2E2B27)
 
     // MARK: 액센트
 

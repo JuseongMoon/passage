@@ -20,8 +20,10 @@ struct PlaceTests {
         let book = Book(title: "데미안")
         context.insert(book)
 
-        controller.start(book: book)
-        controller.stop()
+        controller.beginReading(book: book)
+        controller.confirmStart(startPage: nil)
+        controller.endReading()
+        controller.finishEnded(startPage: nil, endPage: nil)
         #expect(controller.sessionAwaitingPlace != nil)
 
         let place = Place(name: "동네 카페")
@@ -40,8 +42,10 @@ struct PlaceTests {
         let book = Book(title: "데미안")
         context.insert(book)
 
-        controller.start(book: book)
-        controller.stop()
+        controller.beginReading(book: book)
+        controller.confirmStart(startPage: nil)
+        controller.endReading()
+        controller.finishEnded(startPage: nil, endPage: nil)
         let session = try #require(controller.sessionAwaitingPlace)
         controller.skipPlacePrompt()
 

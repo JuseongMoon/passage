@@ -59,10 +59,10 @@ struct BookDetailView: View {
                 .padding(.vertical, Theme.Spacing.xs)
             }
 
-            if !sessionController.isReading {
+            if !sessionController.isFlowActive {
                 Section {
                     Button {
-                        sessionController.start(book: book)
+                        sessionController.beginReading(book: book)
                     } label: {
                         Label("읽기 시작", systemImage: "play.fill")
                             .font(.headline)

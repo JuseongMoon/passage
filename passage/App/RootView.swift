@@ -28,11 +28,11 @@ struct RootView: View {
             }
         }
         .fullScreenCover(isPresented: Binding(
-            get: { sessionController.isReading || sessionController.sessionAwaitingPlace != nil },
+            get: { sessionController.isFlowActive },
             set: { _ in }
         )) {
-            if let session = sessionController.activeSession {
-                ActiveSessionView(session: session)
+            if sessionController.phase != nil {
+                ReadingSessionView()
             } else if let session = sessionController.sessionAwaitingPlace {
                 WhereDidYouReadView(session: session)
             }

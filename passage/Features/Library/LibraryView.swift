@@ -123,7 +123,7 @@ struct LibraryView: View {
 
     private func startSession(at index: Int) {
         guard books.indices.contains(index) else { return }
-        sessionController.start(book: books[index])
+        sessionController.beginReading(book: books[index])
     }
 
     private func viewJourney(at index: Int) {
