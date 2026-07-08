@@ -95,11 +95,11 @@ struct PassPresentation: Identifiable, Hashable, Sendable {
         return name.isEmpty ? "장소 없음" : name
     }
 
-    /// "45분 · 16p" — 페이지 델타가 있으면 붙인다.
+    /// "45분 · 280p" — 그 여정에서 도달한 마지막 페이지(절대 위치). 시작 페이지 제안·진행률과 일관.
     private static func journeyMeta(_ session: ReadingSession) -> String {
         var parts = [session.duration.readableDuration]
-        if let start = session.startPage, let end = session.endPage, end > start {
-            parts.append("\(end - start)p")
+        if let end = session.endPage {
+            parts.append("\(end)p")
         }
         return parts.joined(separator: " · ")
     }

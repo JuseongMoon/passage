@@ -127,7 +127,7 @@ struct PassPresentationTests {
         #expect(pass.recentJourneys.count == 2)                 // 최대 2개
         #expect(pass.recentJourneys[0].place == "집")            // 가장 최근(3000)
         #expect(pass.recentJourneys[1].place == "동네 카페")      // 그 다음(2000)
-        #expect(pass.recentJourneys[0].meta == "15분 · 25p")    // 900초=15분, 55-30=25p
+        #expect(pass.recentJourneys[0].meta == "15분 · 55p")    // 900초=15분, 도달 페이지 55p
     }
 
     @Test func journeyMetaOmitsPagesWhenMissing() throws {

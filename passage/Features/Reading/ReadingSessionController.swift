@@ -55,12 +55,13 @@ final class ReadingSessionController {
         restoreActiveSession()
     }
 
-    /// 지난 세션의 마지막 페이지(시작 페이지 자동 채움 제안).
+    /// 가장 최근에 끝낸 세션의 마지막 페이지(시작 페이지 자동 채움 제안).
+    /// 최댓값이 아니라 "가장 최근" 위치 — 권마다 페이지가 리셋되는 다권 세트에서도 이어읽기 페이지가 맞다.
     func suggestedStartPage(for book: Book) -> Int? {
-        (book.sessions ?? [])
+        let completed: [ReadingSession] = (book.sessions ?? [])
             .filter { $0.endDate != nil }
-            .compactMap(\.endPage)
-            .max()
+            .sorted { ($0.endDate ?? $0.startDate) > ($1.endDate ?? $1.startDate) }
+        return completed.compactMap(\.endPage).first
     }
 
     /// 준비 단계 진입(시작 페이지를 고를 수 있게).
