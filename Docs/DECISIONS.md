@@ -103,4 +103,11 @@
 - **트레이드오프**: 시스템 자동(다크모드 검수, UI_GUIDE)을 기본으로 유지 — override는 사용자가 명시적으로 고를 때만.
 
 ---
-*새 결정은 아래에 #17부터 이어서 기록한다.*
+### #17 — 도서 페이지 수 보조 조회: 알라딘 1순위 + Google Books 폴백 ✅
+- **결정**: 네이버 책 검색이 `pageCount`를 주지 않으므로(#13), 책 추가 시 ISBN으로 페이지 수를 **보조 조회**해 `Book.totalPageCount`를 채운다(→ 진행률 바코드 자동 표시). `PageCountService` 프로토콜 뒤 **알라딘 ItemLookUp `subInfo.itemPage`(1순위)** → **Google Books `volumeInfo.pageCount`(폴백)**. `PageCountFiller`(@MainActor)가 추가 후 백그라운드로 채운다(사용자가 그새 수동 입력했으면 덮지 않음).
+- **이유**: 진행률 바코드는 `totalPageCount`가 필요. 조사 결과 **알라딘**이 국내서 커버리지·깔끔한 정수 필드로 최적(무료 TTBKey). 카카오/네이버는 페이지 수 미제공, **국립중앙도서관 Seoji(`PAGE`)**는 문자열 파싱 + 키 승인이 필요해 후순위(추후 추가 가능).
+- **트레이드오프**: 알라딘 TTBKey는 `Secrets.xcconfig`(선택). 없으면 Google Books 폴백(무키 공용 할당량, 국내서 편차)/수동 입력으로 **우아하게 degrade**. 알라딘 `output=js` JSON이 드물게 비표준이면 파싱 실패→폴백. https 사용(ATS 예외 불필요 추정, 실패 시 http+예외 검토).
+- **상태**: ✅ (실호출 검증은 TTBKey 입력 후 환경에서).
+
+---
+*새 결정은 아래에 #18부터 이어서 기록한다.*
