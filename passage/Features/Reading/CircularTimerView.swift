@@ -9,17 +9,27 @@
 import SwiftUI
 
 struct CircularTimerView: View {
-    /// 주어진 시각 기준 경과 초. (컨트롤러의 elapsed를 넘긴다)
-    let elapsed: (Date) -> TimeInterval
+    /// 일시정지 구간을 제외하고 이미 누적된 경과 초.
+    let accumulated: TimeInterval
+    /// 현재 러닝 구간의 시작 시각(일시정지 중·미시작이면 nil).
+    /// 표시 경과 = accumulated + (now - runningSince). 전부 Sendable 값이라
+    /// TimelineView가 어느 스레드에서 평가해도 MainActor 상태(컨트롤러)에 닿지 않는다.
+    let runningSince: Date?
     /// 틱을 켤지 여부(ready 단계에서는 false).
     var active: Bool = true
     var diameter: CGFloat = 280
 
     private let tickCount = 60
 
+    /// 주어진 시각의 경과 초(순수 계산). ReadingSessionController.elapsed(now:)와 같은 식.
+    /// `nonisolated`: TimelineView content가 렌더 스레드에서 평가돼도 안전하도록.
+    private nonisolated func elapsed(at now: Date) -> TimeInterval {
+        accumulated + (runningSince.map { max(0, now.timeIntervalSince($0)) } ?? 0)
+    }
+
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
-            let seconds = elapsed(context.date)
+            let seconds = elapsed(at: context.date)
             let lit = active ? min(tickCount, Int(seconds / 60)) : 0
 
             ZStack {
@@ -46,8 +56,8 @@ struct CircularTimerView: View {
 
 #Preview {
     VStack(spacing: 40) {
-        CircularTimerView(elapsed: { _ in 0 }, active: false, diameter: 240)
-        CircularTimerView(elapsed: { _ in 1_530 }, active: true, diameter: 240)  // 25:30
+        CircularTimerView(accumulated: 0, runningSince: nil, active: false, diameter: 240)
+        CircularTimerView(accumulated: 1_530, runningSince: nil, active: true, diameter: 240)  // 25:30
     }
     .padding()
     .background(PassagePalette.appBg)

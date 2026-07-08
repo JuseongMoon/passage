@@ -40,10 +40,11 @@ struct NaverMapView: UIViewRepresentable {
             self.parent = parent
         }
 
-        // SDK가 메인 스레드에서 호출하므로 nonisolated로 받아 MainActor로 넘긴다.
+        // SDK 콜백 스레드를 보장할 수 없다 → assumeIsolated(비-메인이면 dispatch_assert_queue
+        // 크래시) 대신 MainActor로 홉해서 바인딩을 갱신한다. (프로젝트 관용구: Task { @MainActor in })
         nonisolated func mapView(_ mapView: NMFMapView, didTapMap latlng: NMGLatLng, point: CGPoint) {
             let lat = latlng.lat, lng = latlng.lng   // Sendable(Double)만 경계 너머로
-            MainActor.assumeIsolated {
+            Task { @MainActor in
                 parent.selectedPoint = MapPoint(latitude: lat, longitude: lng)
             }
         }

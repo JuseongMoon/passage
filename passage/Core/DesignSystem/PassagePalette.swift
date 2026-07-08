@@ -90,7 +90,10 @@ enum PassagePalette {
 
 extension Color {
     /// 0xRRGGBB 정수로 색 생성.
-    init(hex: UInt32) {
+    /// `nonisolated` 필수: 아래 `init(light:dark:)`의 dynamicProvider 클로저가
+    /// UIKit에 의해 비-메인(SwiftUI AsyncRenderer) 스레드에서 호출될 수 있으므로,
+    /// 이 순수 값 계산이 MainActor 격리를 요구하면 런타임 격리 단언이 크래시한다.
+    nonisolated init(hex: UInt32) {
         let r = Double((hex >> 16) & 0xFF) / 255
         let g = Double((hex >> 8) & 0xFF) / 255
         let b = Double(hex & 0xFF) / 255
@@ -98,7 +101,10 @@ extension Color {
     }
 
     /// 라이트/다크에서 각각 다른 hex를 쓰는 적응형 색.
-    init(light: UInt32, dark: UInt32) {
+    /// `nonisolated` 필수: `UIColor(dynamicProvider:)`는 trait 해석 시점에 임의 스레드
+    /// (렌더 서버/AsyncRenderer 포함)에서 클로저를 호출한다. 모듈 기본격리가 MainActor라
+    /// 이 클로저가 @MainActor로 추론되면 비-메인 호출 시 dispatch_assert_queue가 크래시한다.
+    nonisolated init(light: UInt32, dark: UInt32) {
         self.init(uiColor: UIColor { trait in
             trait.userInterfaceStyle == .dark
                 ? UIColor(Color(hex: dark))

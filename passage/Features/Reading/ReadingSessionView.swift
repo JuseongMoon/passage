@@ -105,7 +105,7 @@ struct ReadingSessionView: View {
                 }
             }
             Spacer()
-            CircularTimerView(elapsed: { _ in 0 }, active: false, diameter: 280)
+            CircularTimerView(accumulated: 0, runningSince: nil, active: false, diameter: 280)
             Spacer()
             primaryButton("시작", systemImage: "play.fill") {
                 controller.confirmStart(startPage: Int(startPageText))
@@ -133,7 +133,12 @@ struct ReadingSessionView: View {
             )
 
             Spacer()
-            CircularTimerView(elapsed: { controller.elapsed(now: $0) }, active: true, diameter: 300)
+            CircularTimerView(
+                accumulated: controller.timerAccumulated,
+                runningSince: controller.timerRunningSince,
+                active: true,
+                diameter: 300
+            )
             Spacer()
 
             HStack(spacing: Theme.Spacing.sm) {

@@ -87,6 +87,11 @@ final class ReadingSessionController {
         accumulatedElapsed + (runningSince.map { max(0, now.timeIntervalSince($0)) } ?? 0)
     }
 
+    /// 타이머 표시용 경과 성분(관찰 비대상 — 표시는 TimelineView가 매초 구동한다).
+    /// running 진입·일시정지 전환 때 activeSession·isPaused 변화로 뷰가 갱신되어 최신값이 전달된다.
+    var timerAccumulated: TimeInterval { accumulatedElapsed }
+    var timerRunningSince: Date? { runningSince }
+
     func pause() {
         guard activeSession != nil, !isPaused, let since = runningSince else { return }
         accumulatedElapsed += max(0, Date().timeIntervalSince(since))
