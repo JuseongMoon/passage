@@ -122,6 +122,29 @@ final class ReadingSessionController {
         sessionAwaitingPlace = session
     }
 
+    /// ended 단계 저장(인라인): 페이지 + 인라인 장소를 바로 반영하고 종료(별도 장소 화면 없음).
+    /// placeName이 비면 장소 없이 저장(장소는 선택).
+    func finishEndedInline(
+        startPage: Int?,
+        endPage: Int?,
+        placeName: String?,
+        latitude: Double? = nil,
+        longitude: Double? = nil,
+        address: String? = nil
+    ) {
+        guard let session = endedSession else { return }
+        session.startPage = startPage
+        session.endPage = endPage
+        let name = (placeName ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        if !name.isEmpty {
+            let place = Place(name: name, latitude: latitude, longitude: longitude, address: address)
+            modelContext.insert(place)
+            session.place = place
+        }
+        try? modelContext.save()
+        endedSession = nil
+    }
+
     /// 종료된 세션에 장소를 연결하고 질문을 닫는다.
     func assignPlace(_ place: Place, to session: ReadingSession) {
         session.place = place

@@ -97,6 +97,43 @@ struct ReadingSessionControllerTests {
         _ = container
     }
 
+    @Test func finishEndedInlineAssignsPlaceAndClosesWithoutPrompt() throws {
+        let (container, ctx) = makeContext()
+        let book = Book(title: "책")
+        ctx.insert(book)
+        let controller = ReadingSessionController(modelContext: ctx)
+        controller.beginReading(book: book)
+        controller.confirmStart(startPage: 10)
+        controller.endReading()
+
+        controller.finishEndedInline(startPage: 10, endPage: 40, placeName: "동네 카페",
+                                     latitude: 37.5, longitude: 127.0, address: "서울")
+        #expect(controller.phase == nil)
+        #expect(controller.sessionAwaitingPlace == nil)   // 장소 화면으로 가지 않음
+        #expect(controller.endedSession == nil)
+        let sessions = try ctx.fetch(FetchDescriptor<ReadingSession>())
+        #expect(sessions.first?.endPage == 40)
+        #expect(sessions.first?.place?.name == "동네 카페")
+        #expect(try ctx.fetch(FetchDescriptor<Place>()).count == 1)
+        _ = container
+    }
+
+    @Test func finishEndedInlineEmptyNameSavesNoPlace() throws {
+        let (container, ctx) = makeContext()
+        let book = Book(title: "책")
+        ctx.insert(book)
+        let controller = ReadingSessionController(modelContext: ctx)
+        controller.beginReading(book: book)
+        controller.confirmStart(startPage: nil)
+        controller.endReading()
+
+        controller.finishEndedInline(startPage: nil, endPage: nil, placeName: "   ")
+        #expect(controller.phase == nil)
+        #expect(try ctx.fetch(FetchDescriptor<Place>()).isEmpty)   // 빈 이름 → 장소 생성 안 함
+        #expect(try ctx.fetch(FetchDescriptor<ReadingSession>()).first?.place == nil)
+        _ = container
+    }
+
     @Test func cancelFromRunningDiscardsSession() throws {
         let (container, ctx) = makeContext()
         let book = Book(title: "책")

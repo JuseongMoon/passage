@@ -9,16 +9,23 @@
 
 import SwiftUI
 import SwiftData
+import CoreLocation
 
 struct ReadingSessionView: View {
     @Environment(ReadingSessionController.self) private var controller
+    @Environment(AppDependencies.self) private var dependencies
 
     @State private var startPageText = ""
     @State private var endPageText = ""
+    @State private var placeText = ""
+    @State private var placeCoord: CLLocationCoordinate2D?
+    @State private var placeAddress: String?
+    @State private var locationAutofilled = false
+    @State private var didAutofill = false
     @State private var didPrefillStartPage = false
     @FocusState private var focusedField: Field?
 
-    private enum Field { case start, end }
+    private enum Field { case start, end, place }
 
     var body: some View {
         ZStack {
@@ -147,33 +154,62 @@ struct ReadingSessionView: View {
     // MARK: ended
 
     private var endedStep: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
-            HStack(alignment: .firstTextBaseline, spacing: Theme.Spacing.sm) {
-                Text("이번 세션")
-                    .font(.system(size: 13))
-                    .foregroundStyle(PassagePalette.inkMuted)
-                Text((controller.endedSession?.duration ?? 0).clockString)
-                    .font(.system(size: 30, weight: .light).monospacedDigit())
-                    .foregroundStyle(PassagePalette.ink)
-            }
+        ScrollView {
+            VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+                HStack(alignment: .firstTextBaseline, spacing: Theme.Spacing.sm) {
+                    Text("이번 세션")
+                        .font(.system(size: 13))
+                        .foregroundStyle(PassagePalette.inkMuted)
+                    Text((controller.endedSession?.duration ?? 0).clockString)
+                        .font(.system(size: 30, weight: .light).monospacedDigit())
+                        .foregroundStyle(PassagePalette.ink)
+                }
 
-            HStack(spacing: Theme.Spacing.sm) {
-                pageColumn("시작 페이지", $startPageText)
-                    .focused($focusedField, equals: .start)
-                pageColumn("끝 페이지 (선택)", $endPageText)
-                    .focused($focusedField, equals: .end)
-            }
+                HStack(spacing: Theme.Spacing.sm) {
+                    pageColumn("시작 페이지", $startPageText)
+                        .focused($focusedField, equals: .start)
+                    pageColumn("끝 페이지 (선택)", $endPageText)
+                        .focused($focusedField, equals: .end)
+                }
 
-            Text("저장하면 ‘어디서 읽으셨나요?’에서 장소를 더할 수 있어요")
+                placeSection
+
+                primaryButton("세션 저장하기") { saveEnded() }
+                    .padding(.top, Theme.Spacing.xs)
+            }
+            .padding(Theme.Spacing.lg)
+        }
+        .scrollDismissesKeyboard(.interactively)
+        .task(id: controller.endedSession?.id) { await autofillLocationIfPossible() }
+    }
+
+    private var placeSection: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+            fieldLabel("장소 (선택)")
+            PlaceMiniMap()
+                .contentShape(.rect)
+                .onTapGesture { openMapPlacePicker() }
+                .accessibilityElement()
+                .accessibilityLabel("지도·최근 장소에서 고르기")
+                .accessibilityAddTraits(.isButton)
+            TextField("어디서 읽었나요?", text: $placeText)
+                .focused($focusedField, equals: .place)
+                .autocorrectionDisabled()
+                .font(.system(size: 15))
+                .foregroundStyle(PassagePalette.ink)
+                .padding(.horizontal, Theme.Spacing.md)
+                .frame(height: 48)
+                .background(
+                    RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous)
+                        .fill(PassagePalette.field)
+                        .stroke(PassagePalette.hairline, lineWidth: 1.5)
+                )
+            Text(locationAutofilled
+                 ? "📍 위치 정보가 켜져 있어 현재 위치를 자동으로 가져왔어요"
+                 : "지도를 누르면 최근 장소·지도·사진으로 자세히 고를 수 있어요")
                 .font(.system(size: 11))
                 .foregroundStyle(PassagePalette.inkFaint)
-
-            Spacer()
-            primaryButton("세션 저장하기") {
-                controller.finishEnded(startPage: Int(startPageText), endPage: Int(endPageText))
-            }
         }
-        .padding(Theme.Spacing.lg)
     }
 
     // MARK: 구성요소
@@ -280,6 +316,99 @@ struct ReadingSessionView: View {
             startPageText = String(page)
         }
     }
+
+    private func saveEnded() {
+        controller.finishEndedInline(
+            startPage: Int(startPageText),
+            endPage: Int(endPageText),
+            placeName: placeText,
+            latitude: placeCoord?.latitude,
+            longitude: placeCoord?.longitude,
+            address: placeAddress
+        )
+    }
+
+    /// 지도를 눌러 기존 리치 장소 화면(최근 장소·지도 탭·POI 검색·사진)으로 넘긴다.
+    private func openMapPlacePicker() {
+        controller.finishEnded(startPage: Int(startPageText), endPage: Int(endPageText))
+    }
+
+    /// 위치 권한이 이미 있으면 현재 위치를 reverse-geocode해 장소를 자동 채운다(선택).
+    private func autofillLocationIfPossible() async {
+        guard controller.phase == .ended, !didAutofill else { return }
+        didAutofill = true
+        let status = dependencies.location.authorizationStatus
+        guard status == .authorizedWhenInUse || status == .authorizedAlways else { return }
+        do {
+            let coord = try await dependencies.location.currentLocation()
+            placeCoord = coord
+            let address = try await dependencies.geocoding.reverseGeocode(
+                latitude: coord.latitude, longitude: coord.longitude
+            )
+            placeAddress = address
+            if placeText.isEmpty {
+                placeText = address
+                locationAutofilled = true
+            }
+        } catch {
+            // 권한 없음/실패 → 조용히 무시(직접 입력 가능)
+        }
+    }
+}
+
+/// 종료 단계의 장식용 미니맵(실제 지도 아님 — 탭하면 리치 장소 화면으로). 목업 재현.
+private struct PlaceMiniMap: View {
+    var body: some View {
+        ZStack {
+            PassagePalette.cardBody
+
+            GeometryReader { geo in
+                let w = geo.size.width, h = geo.size.height
+                Path { p in
+                    p.move(to: CGPoint(x: 0, y: h * 0.34)); p.addLine(to: CGPoint(x: w, y: h * 0.34))
+                    p.move(to: CGPoint(x: 0, y: h * 0.70)); p.addLine(to: CGPoint(x: w, y: h * 0.70))
+                    p.move(to: CGPoint(x: w * 0.22, y: 0)); p.addLine(to: CGPoint(x: w * 0.22, y: h))
+                    p.move(to: CGPoint(x: w * 0.64, y: 0)); p.addLine(to: CGPoint(x: w * 0.64, y: h))
+                }
+                .stroke(PassagePalette.ink.opacity(0.08), lineWidth: 1)
+
+                block(w * 0.10, h * 0.20, 34, 16)
+                block(w * 0.34, h * 0.52, 40, 20)
+                block(w * 0.74, h * 0.24, 36, 22)
+                block(w * 0.80, h * 0.70, 30, 16)
+            }
+
+            // 중심 핀(글로우 + 점)
+            ZStack {
+                Circle().fill(PassagePalette.warmAccent.opacity(0.18)).frame(width: 34, height: 34)
+                Circle().fill(PassagePalette.warmAccent)
+                    .frame(width: 14, height: 14)
+                    .overlay(Circle().strokeBorder(.white, lineWidth: 2.5))
+                    .shadow(color: .black.opacity(0.3), radius: 3, x: 0, y: 2)
+            }
+        }
+        .frame(height: 96)
+        .clipShape(.rect(cornerRadius: Theme.Radius.md, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous)
+                .stroke(PassagePalette.hairline, lineWidth: 1.5)
+        )
+        .overlay(alignment: .topTrailing) {
+            Image(systemName: "map")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(PassagePalette.inkMuted)
+                .padding(6)
+                .background(PassagePalette.field.opacity(0.9), in: .circle)
+                .padding(8)
+        }
+    }
+
+    private func block(_ x: CGFloat, _ y: CGFloat, _ w: CGFloat, _ h: CGFloat) -> some View {
+        RoundedRectangle(cornerRadius: 3)
+            .fill(PassagePalette.ink.opacity(0.05))
+            .frame(width: w, height: h)
+            .position(x: x + w / 2, y: y + h / 2)
+    }
 }
 
 // MARK: - Preview
@@ -306,7 +435,9 @@ private struct ReadingSessionPreviewHost: View {
     }
 
     var body: some View {
-        ReadingSessionView().environment(controller)
+        ReadingSessionView()
+            .environment(controller)
+            .environment(AppDependencies())
     }
 }
 
