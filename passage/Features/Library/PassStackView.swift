@@ -30,6 +30,7 @@ struct PassStackView: View {
     let onStartSession: (Int) -> Void
     let onViewJourney: (Int) -> Void
     let onDelete: (Int) -> Void
+    let onSetPageCount: (Int) -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -47,7 +48,8 @@ struct PassStackView: View {
                         onOpen: { step(to: index) },
                         onStartSession: { onStartSession(index) },
                         onViewJourney: { onViewJourney(index) },
-                        onDelete: { onDelete(index) }
+                        onDelete: { onDelete(index) },
+                        onSetPageCount: { onSetPageCount(index) }
                     )
                     .padding(.horizontal, PassLayout.hPadding)
                     .offset(y: topOffset(for: index, front: front, height: height))

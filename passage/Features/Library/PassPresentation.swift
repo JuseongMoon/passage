@@ -33,10 +33,9 @@ struct PassPresentation: Identifiable, Hashable, Sendable {
     let recentJourneys: [PassJourney]
 
     /// 진행률 0~1. `totalPageCount`나 완료 페이지가 없으면 nil → 바코드 대신 폴백 라인.
+    /// 진행률 0~1. 전체 페이지 수를 알면 항상 값이 있고(0%부터), 모르면 nil.
     let progress: Double?
     let progressPercent: Int?
-    /// progress가 nil일 때 진행률 자리에 보여줄 한 줄.
-    let fallbackLine: String?
 
     /// 헤더 스트립 우측 날짜(최근 세션). 세션이 없으면 "아직 기록 없음".
     let headerDate: String
@@ -68,18 +67,15 @@ struct PassPresentation: Identifiable, Hashable, Sendable {
         }
 
         // 진행률: 완료 세션 중 최대 endPage / 전체 페이지 수.
-        let maxEndPage = completed.compactMap(\.endPage).max()
-        if let total = book.totalPageCount, total > 0, let maxEndPage, maxEndPage > 0 {
-            let ratio = min(1, max(0, Double(maxEndPage) / Double(total)))
+        // 전체 페이지 수를 알면 항상 표시(0%부터). 모르면 nil → 카드에서 '전체 페이지 수 입력' 프롬프트.
+        if let total = book.totalPageCount, total > 0 {
+            let current = completed.compactMap(\.endPage).max() ?? 0
+            let ratio = min(1, max(0, Double(current) / Double(total)))
             self.progress = ratio
             self.progressPercent = Int((ratio * 100).rounded())
-            self.fallbackLine = nil
         } else {
             self.progress = nil
             self.progressPercent = nil
-            self.fallbackLine = completed.isEmpty
-                ? "아직 기록된 세션이 없어요"
-                : "\(completed.count)번의 여정 · \(totalDuration.readableDuration)"
         }
 
         self.headerDate = completed.first

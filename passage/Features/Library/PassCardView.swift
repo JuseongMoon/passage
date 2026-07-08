@@ -18,6 +18,7 @@ struct PassCardView: View {
     let onStartSession: () -> Void
     let onViewJourney: () -> Void
     let onDelete: () -> Void
+    let onSetPageCount: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
@@ -200,13 +201,24 @@ struct PassCardView: View {
         Group {
             if let progress = pass.progress, let percent = pass.progressPercent {
                 BarcodeProgressView(progress: progress, percent: percent)
-            } else if let line = pass.fallbackLine {
-                HStack {
-                    Text(line)
-                        .font(.system(size: 12))
-                        .foregroundStyle(PassagePalette.inkMuted)
-                    Spacer()
+            } else {
+                // 전체 페이지 수를 모르면 진행률 대신 입력 프롬프트.
+                Button(action: onSetPageCount) {
+                    HStack {
+                        Text("독서 진행률")
+                            .font(.system(size: 12))
+                            .foregroundStyle(PassagePalette.ink)
+                        Spacer()
+                        HStack(spacing: 4) {
+                            Text("전체 페이지 수 입력")
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 10, weight: .semibold))
+                        }
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(PassagePalette.warmAccent)
+                    }
                 }
+                .buttonStyle(.plain)
             }
         }
         .padding(.horizontal, Theme.Spacing.md)

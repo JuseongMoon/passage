@@ -47,7 +47,6 @@ struct PassPresentationTests {
         let pass = PassPresentation(book: book)
         #expect(pass.progress == 0.6)          // 120 / 200
         #expect(pass.progressPercent == 60)
-        #expect(pass.fallbackLine == nil)
     }
 
     @Test func progressClampsAtOne() throws {
@@ -72,21 +71,20 @@ struct PassPresentationTests {
         try context.save()
 
         let pass = PassPresentation(book: book)
-        #expect(pass.progress == nil)
+        #expect(pass.progress == nil)           // 전체 페이지 수 모르면 진행률 없음(카드에서 입력 프롬프트)
         #expect(pass.progressPercent == nil)
-        #expect(pass.fallbackLine == "1번의 여정 · 10분")
     }
 
-    @Test func emptyBookHasNoSessionsFallback() throws {
+    @Test func pageCountKnownButUnreadShowsZeroProgress() throws {
         let container = PassageModelContainer.makePreview()
         let context = container.mainContext
-        let book = Book(title: "책", totalPageCount: 200)
+        let book = Book(title: "책", totalPageCount: 200)   // 페이지 수는 알지만 아직 안 읽음
         context.insert(book)
         try context.save()
 
         let pass = PassPresentation(book: book)
-        #expect(pass.progress == nil)
-        #expect(pass.fallbackLine == "아직 기록된 세션이 없어요")
+        #expect(pass.progress == 0.0)           // 0%부터 바코드 표시
+        #expect(pass.progressPercent == 0)
         #expect(pass.totalDurationText == "아직 기록 없음")
         #expect(pass.headerDate == "아직 기록 없음")
         #expect(pass.recentJourneys.isEmpty)

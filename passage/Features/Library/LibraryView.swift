@@ -20,6 +20,8 @@ struct LibraryView: View {
     @State private var showingAddBook = false
     @State private var front = 0                 // 펼친 패스(0 = 가장 최근)
     @State private var bookPendingDelete: Book?
+    @State private var bookPendingPageCount: Book?
+    @State private var pageCountText = ""
     @State private var path = NavigationPath()
 
     var body: some View {
@@ -47,6 +49,14 @@ struct LibraryView: View {
                 confirmTitle: "삭제하기",
                 onConfirm: { performDelete($0) }
             )
+            .alert("전체 페이지 수", isPresented: pageCountDialogBinding) {
+                TextField("예: 320", text: $pageCountText)
+                    .keyboardType(.numberPad)
+                Button("저장") { savePageCount() }
+                Button("취소", role: .cancel) { bookPendingPageCount = nil }
+            } message: {
+                Text("전체 페이지 수를 입력하면 독서 진행률(바코드)이 보여요.")
+            }
         }
         .onChange(of: books.count) { _, _ in
             front = min(front, max(0, books.count - 1))
@@ -64,7 +74,8 @@ struct LibraryView: View {
                 onAddBook: { showingAddBook = true },
                 onStartSession: { startSession(at: $0) },
                 onViewJourney: { viewJourney(at: $0) },
-                onDelete: { askDelete(at: $0) }
+                onDelete: { askDelete(at: $0) },
+                onSetPageCount: { promptPageCount(at: $0) }
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
@@ -137,6 +148,27 @@ struct LibraryView: View {
         modelContext.delete(book)      // cascade: 세션·인용구 함께 삭제
         try? modelContext.save()
         front = 0
+    }
+
+    private func promptPageCount(at index: Int) {
+        guard books.indices.contains(index) else { return }
+        let book = books[index]
+        pageCountText = book.totalPageCount.map(String.init) ?? ""
+        bookPendingPageCount = book
+    }
+
+    private func savePageCount() {
+        guard let book = bookPendingPageCount else { return }
+        book.totalPageCount = Int(pageCountText).flatMap { $0 > 0 ? $0 : nil }
+        try? modelContext.save()
+        bookPendingPageCount = nil
+    }
+
+    private var pageCountDialogBinding: Binding<Bool> {
+        Binding(
+            get: { bookPendingPageCount != nil },
+            set: { if !$0 { bookPendingPageCount = nil } }
+        )
     }
 }
 
