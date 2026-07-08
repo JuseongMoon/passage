@@ -161,14 +161,18 @@ struct PassCardView: View {
                     .foregroundStyle(PassagePalette.inkMuted)
                     .padding(.top, 2)
             } else {
+                // 화살표(→) 방향에 맞춰 왼쪽=이전 여정, 오른쪽=최신 여정.
+                // recentJourneys는 최신순([0]=최신)이므로 표시만 뒤집는다.
                 HStack(alignment: .top, spacing: Theme.Spacing.md) {
-                    journeyColumn(pass.recentJourneys[0])
                     if pass.recentJourneys.count > 1 {
+                        journeyColumn(pass.recentJourneys[1])   // 이전(왼쪽)
                         Image(systemName: "arrow.right")
                             .font(.system(size: 14, weight: .semibold))
                             .foregroundStyle(PassagePalette.ink)
                             .padding(.top, 6)
-                        journeyColumn(pass.recentJourneys[1])
+                        journeyColumn(pass.recentJourneys[0])   // 최신(오른쪽)
+                    } else {
+                        journeyColumn(pass.recentJourneys[0])
                     }
                 }
             }

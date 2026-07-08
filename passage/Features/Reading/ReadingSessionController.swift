@@ -72,7 +72,9 @@ final class ReadingSessionController {
     /// 실제 독서 시작: 세션을 즉시 저장하고 타이머를 돌린다.
     func confirmStart(startPage: Int?) {
         guard let book = pendingBook else { return }
-        let session = ReadingSession(book: book, startPage: startPage)
+        // 첫 독서(지난 세션 없음)는 1페이지부터 시작한다. 이어읽기에서 값이 없으면 미기록(선택).
+        let resolvedStartPage = startPage ?? (suggestedStartPage(for: book) == nil ? 1 : nil)
+        let session = ReadingSession(book: book, startPage: resolvedStartPage)
         modelContext.insert(session)
         try? modelContext.save()      // 즉시 저장 → 앱 종료·크래시에도 유지
         pendingBook = nil

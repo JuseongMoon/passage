@@ -29,7 +29,13 @@ struct ReadingSessionView: View {
 
     var body: some View {
         ZStack {
-            PassagePalette.appBg.ignoresSafeArea()
+            // 빈 배경을 누르면 키보드를 내린다. 이 화면은 NavigationStack 밖의
+            // fullScreenCover라 .toolbar(.keyboard) "완료" 버튼이 뜨지 않고,
+            // numberPad엔 return 키도 없어 배경 탭이 유일하게 확실한 dismiss 수단이다.
+            PassagePalette.appBg
+                .ignoresSafeArea()
+                .contentShape(.rect)
+                .onTapGesture { focusedField = nil }
 
             VStack(spacing: 0) {
                 header
@@ -94,11 +100,13 @@ struct ReadingSessionView: View {
 
     private var readyStep: some View {
         VStack(spacing: Theme.Spacing.lg) {
-            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                fieldLabel("시작 페이지 (선택)")
-                pageField($startPageText, placeholder: suggestedStartPage != nil ? "지난 세션 이어서" : "예: 1")
-                    .focused($focusedField, equals: .start)
-                if suggestedStartPage != nil {
+            // 지난 세션 기록이 있을 때만 시작 페이지를 확인·수정한다.
+            // 첫 독서는 어차피 1페이지부터 시작하므로 입력 없이 바로 시작한다.
+            if suggestedStartPage != nil {
+                VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                    fieldLabel("시작 페이지 (선택)")
+                    pageField($startPageText, placeholder: "지난 세션 이어서")
+                        .focused($focusedField, equals: .start)
                     Text("지난 세션에서 읽은 마지막 페이지를 자동으로 가져왔어요")
                         .font(.system(size: 11))
                         .foregroundStyle(PassagePalette.inkFaint)
@@ -185,7 +193,18 @@ struct ReadingSessionView: View {
             .padding(Theme.Spacing.lg)
         }
         .scrollDismissesKeyboard(.interactively)
-        .task(id: controller.endedSession?.id) { await autofillLocationIfPossible() }
+        .task(id: controller.endedSession?.id) {
+            prefillEndedStartPage()
+            await autofillLocationIfPossible()
+        }
+    }
+
+    /// 종료 단계 진입 시 세션의 시작 페이지를 필드에 반영한다(비어 있을 때만).
+    /// 첫 독서는 confirmStart에서 1페이지로 기록되므로, 저장 시 1이 유지된다.
+    private func prefillEndedStartPage() {
+        if startPageText.isEmpty, let start = controller.endedSession?.startPage {
+            startPageText = String(start)
+        }
     }
 
     private var placeSection: some View {
@@ -422,16 +441,18 @@ private struct ReadingSessionPreviewHost: View {
     @State private var container: ModelContainer
     @State private var controller: ReadingSessionController
 
-    init(_ configure: (ReadingSessionController, Book) -> Void) {
+    init(includePreviousSession: Bool = true, _ configure: (ReadingSessionController, Book) -> Void) {
         let container = PassageModelContainer.makePreview()
         let ctx = container.mainContext
         let book = Book(title: "작별하지 않는다", author: "한강", totalPageCount: 340)
         ctx.insert(book)
-        let prev = ReadingSession(book: book, startPage: 0)   // 지난 세션(자동 채움용)
-        prev.endPage = 88
-        prev.endDate = .now
-        prev.duration = 3600
-        ctx.insert(prev)
+        if includePreviousSession {
+            let prev = ReadingSession(book: book, startPage: 0)   // 지난 세션(자동 채움용)
+            prev.endPage = 88
+            prev.endDate = .now
+            prev.duration = 3600
+            ctx.insert(prev)
+        }
         try? ctx.save()
         let controller = ReadingSessionController(modelContext: ctx)
         configure(controller, book)
@@ -446,7 +467,13 @@ private struct ReadingSessionPreviewHost: View {
     }
 }
 
-#Preview("세션 · 준비") {
+#Preview("세션 · 준비(첫 독서)") {
+    ReadingSessionPreviewHost(includePreviousSession: false) { controller, book in
+        controller.beginReading(book: book)
+    }
+}
+
+#Preview("세션 · 준비(이어읽기)") {
     ReadingSessionPreviewHost { controller, book in
         controller.beginReading(book: book)
     }
@@ -456,6 +483,13 @@ private struct ReadingSessionPreviewHost: View {
     ReadingSessionPreviewHost { controller, book in
         controller.beginReading(book: book)
         controller.confirmStart(startPage: 88)
+    }
+}
+
+#Preview("세션 · 진행(첫 독서)") {
+    ReadingSessionPreviewHost(includePreviousSession: false) { controller, book in
+        controller.beginReading(book: book)
+        controller.confirmStart(startPage: nil)   // 첫 독서 → 1페이지부터
     }
 }
 
