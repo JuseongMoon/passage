@@ -11,6 +11,7 @@ import SwiftData
 
 struct RootView: View {
     @Environment(ReadingSessionController.self) private var sessionController
+    @AppStorage(AppStorageKey.appearanceMode) private var appearanceMode = AppearanceMode.system
 
     var body: some View {
         TabView {
@@ -37,6 +38,7 @@ struct RootView: View {
                 WhereDidYouReadView(session: session)
             }
         }
+        .preferredColorScheme(appearanceMode.colorScheme)   // 설정의 화면 모드(기본=시스템)
     }
 }
 

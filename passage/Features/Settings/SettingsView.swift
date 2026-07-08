@@ -11,6 +11,7 @@ import AuthenticationServices
 struct SettingsView: View {
     @Environment(AppDependencies.self) private var dependencies
     @Environment(\.colorScheme) private var colorScheme
+    @AppStorage(AppStorageKey.appearanceMode) private var appearanceMode = AppearanceMode.system
 
     var body: some View {
         NavigationStack {
@@ -23,6 +24,15 @@ struct SettingsView: View {
                     Text(dependencies.auth.currentUser == nil
                          ? "Apple로 로그인하면 기기 간 프로필이 유지돼요. 기록은 iCloud로 안전하게 동기화됩니다."
                          : "기록은 iCloud로 안전하게 동기화됩니다.")
+                }
+
+                Section("화면") {
+                    Picker("화면 모드", selection: $appearanceMode) {
+                        ForEach(AppearanceMode.allCases) { mode in
+                            Text(mode.label).tag(mode)
+                        }
+                    }
+                    .pickerStyle(.segmented)
                 }
 
                 Section("정보") {
