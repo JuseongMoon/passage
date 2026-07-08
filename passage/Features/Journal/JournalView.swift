@@ -16,6 +16,7 @@ struct JournalView: View {
     ) private var sessions: [ReadingSession]
 
     @State private var lens: JournalLens = .book
+    @State private var showingReflection = false
 
     var body: some View {
         NavigationStack {
@@ -53,7 +54,17 @@ struct JournalView: View {
                     }
                 }
             }
-            .navigationTitle("저널")
+            .navigationTitle("독서여정")
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button { showingReflection = true } label: {
+                        Label("회고", systemImage: "sparkles")
+                    }
+                }
+            }
+            .sheet(isPresented: $showingReflection) {
+                ReflectionView()
+            }
         }
     }
 }

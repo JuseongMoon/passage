@@ -40,16 +40,13 @@ struct LibraryView: View {
             .sheet(isPresented: $showingAddBook) {
                 BookSearchView()
             }
-            .confirmationDialog(
-                deleteTitle,
-                isPresented: deleteDialogBinding,
-                titleVisibility: .visible
-            ) {
-                Button("책 삭제하기", role: .destructive) { performDelete() }
-                Button("취소", role: .cancel) { bookPendingDelete = nil }
-            } message: {
-                Text("이 책의 모든 독서 기록과 여정이 함께 삭제되며, 되돌릴 수 없어요.")
-            }
+            .passageConfirmModal(
+                item: $bookPendingDelete,
+                title: { "'\($0.title)'을(를) 삭제할까요?" },
+                message: "이 책의 모든 독서 기록과 여정이 함께 삭제되며, 되돌릴 수 없어요.",
+                confirmTitle: "삭제하기",
+                onConfirm: { performDelete($0) }
+            )
         }
         .onChange(of: books.count) { _, _ in
             front = min(front, max(0, books.count - 1))
@@ -136,23 +133,10 @@ struct LibraryView: View {
         bookPendingDelete = books[index]
     }
 
-    private func performDelete() {
-        guard let book = bookPendingDelete else { return }
+    private func performDelete(_ book: Book) {
         modelContext.delete(book)      // cascade: 세션·인용구 함께 삭제
         try? modelContext.save()
-        bookPendingDelete = nil
         front = 0
-    }
-
-    private var deleteDialogBinding: Binding<Bool> {
-        Binding(
-            get: { bookPendingDelete != nil },
-            set: { if !$0 { bookPendingDelete = nil } }
-        )
-    }
-
-    private var deleteTitle: String {
-        "'\(bookPendingDelete?.title ?? "")'을(를) 삭제할까요?"
     }
 }
 
