@@ -82,25 +82,11 @@ struct LibraryView: View {
     }
 
     private var headerView: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-            Text("Passage")
-                .font(.system(size: 19, weight: .light))
-                .foregroundStyle(PassagePalette.ink)
-            VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
-                Text(libraryTitle)
-                    .font(.system(size: 28))
-                    .foregroundStyle(PassagePalette.ink)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-                Text("현재 \(books.count)권의 책을 읽고 있어요")
-                    .font(.system(size: 12))
-                    .foregroundStyle(PassagePalette.inkMuted)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, Theme.Spacing.md)
-        .padding(.top, Theme.Spacing.sm)
-        .padding(.bottom, Theme.Spacing.xs)
+        PassageScreenHeader(
+            eyebrow: "Passage",
+            title: libraryTitle,
+            subtitle: "현재 \(books.count)권의 책을 읽고 있어요"
+        )
     }
 
     private var emptyState: some View {

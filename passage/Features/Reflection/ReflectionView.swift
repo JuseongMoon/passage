@@ -3,7 +3,7 @@
 //  passage
 //
 //  잔잔한 회고 — 한 해 동안 함께한 책·구절·머문 곳을 조용히 되돌아본다.
-//  수치·순위·경쟁 없이. (Memory over Productivity)
+//  수치·순위·경쟁 없이. (Memory over Productivity) · 서재와 같은 웜 팔레트 톤.
 //
 
 import SwiftUI
@@ -18,7 +18,9 @@ struct ReflectionView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
+            ZStack {
+                PassagePalette.appBg.ignoresSafeArea()
+
                 if let year = selectedYear ?? years.first {
                     content(for: year)
                 } else {
@@ -40,6 +42,7 @@ struct ReflectionView: View {
                         } label: {
                             Label(String(current), systemImage: "calendar")
                         }
+                        .tint(PassagePalette.warmAccent)
                     }
                 }
             }
@@ -53,14 +56,15 @@ struct ReflectionView: View {
                 VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
                     Text(String(year))
                         .font(.system(size: 44, weight: .light, design: .serif))
+                        .foregroundStyle(PassagePalette.ink)
                     Text("함께 읽은 기억")
                         .font(.title3)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(PassagePalette.inkMuted)
                 }
 
                 if digest.books.isEmpty && digest.quotes.isEmpty && digest.places.isEmpty {
                     Text("이 해엔 아직 남긴 기억이 없어요.")
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(PassagePalette.inkMuted)
                         .padding(.vertical, Theme.Spacing.xl)
                 } else {
                     if !digest.books.isEmpty { booksSection(digest.books) }
@@ -71,6 +75,7 @@ struct ReflectionView: View {
             .padding(Theme.Spacing.lg)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .scrollContentBackground(.hidden)
     }
 
     private func booksSection(_ books: [Book]) -> some View {
@@ -87,7 +92,7 @@ struct ReflectionView: View {
                                     .frame(width: 92, height: 138)
                                 Text(book.title)
                                     .font(.caption)
-                                    .foregroundStyle(.primary)
+                                    .foregroundStyle(PassagePalette.ink)
                                     .lineLimit(1)
                                     .frame(width: 92, alignment: .leading)
                             }
@@ -106,10 +111,11 @@ struct ReflectionView: View {
                 VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
                     Text("“\(quote.text)”")
                         .fontDesign(.serif)
+                        .foregroundStyle(PassagePalette.ink)
                     if let title = quote.book?.title, !title.isEmpty {
                         Text("— \(title)")
                             .font(.footnote)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(PassagePalette.inkMuted)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -121,8 +127,13 @@ struct ReflectionView: View {
         VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
             sectionTitle("머문 곳")
             ForEach(places) { place in
-                Label(place.name, systemImage: "mappin.and.ellipse")
-                    .font(.subheadline)
+                HStack(spacing: Theme.Spacing.xs) {
+                    Image(systemName: "mappin.and.ellipse")
+                        .foregroundStyle(PassagePalette.warmAccent)
+                    Text(place.name)
+                        .foregroundStyle(PassagePalette.ink)
+                }
+                .font(.subheadline)
             }
         }
     }
@@ -130,7 +141,7 @@ struct ReflectionView: View {
     private func sectionTitle(_ text: String) -> some View {
         Text(text)
             .font(.headline)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(PassagePalette.inkMuted)
     }
 }
 

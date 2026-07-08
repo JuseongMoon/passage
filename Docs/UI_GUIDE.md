@@ -3,7 +3,7 @@
 > 지향: **Calm · Minimal · Beautiful · Reflective** (Apple Journal / Books / Day One).
 > 원칙: **덜 넣는다.** 여백을 아끼지 않는다. 네이티브(iOS 26 HIG)를 최대한 따른다. 커스텀은 이유가 있을 때만.
 
-> ⚠️ **2026-07 보딩패스 재구성(DECISIONS #15)**: **독서 루프 표면(서재 홈 · 세션 오버레이 · 책 추가)**은 따뜻한 `PassagePalette` 토큰 + 티켓/바코드/원형시계 모티프로 더 과감하게 간다. 아래 뉴트럴·시스템색·Dynamic Type 지침은 **그 외 화면(저널·회고·설정·상세)의 기본**으로 읽되, 재구성 표면엔 §1·§3의 예외를 적용한다. 철학(Calm·Reflective, Memory over Productivity)은 두 곳 모두 동일하게 지킨다.
+> ⚠️ **2026-07 보딩패스 재구성(DECISIONS #15) + 톤 통일(#18)**: **전 탭(서재·독서여정·설정)이 웜 `PassagePalette` 톤을 공유한다** — 웜 `appBg` 배경 · 커스텀 대형 잉크 헤더(`PassageScreenHeader`) · `ink/inkMuted` 텍스트 · `cardBody` 카드 · `warmAccent`. **티켓/바코드/원형시계 모티프는 독서 루프 표면(서재 홈 · 세션 오버레이 · 책 추가)에 한정**(설정 등엔 강요하지 않는다 — Calm·Minimal). 아래 뉴트럴·시스템색·Dynamic Type 지침은 이제 **팔레트만 웜 토큰으로 치환**해 읽는다(구조/여백/타이포 원칙은 동일). 고정 pt는 dense 레이아웃(티켓·타이머)에만 예외. 철학(Calm·Reflective, Memory over Productivity)은 전 화면 동일.
 
 ---
 
@@ -33,7 +33,7 @@
 - 텍스트: `.primary` / `.secondary` / `.tertiary`. 하드코딩 색 금지.
 - **Accent**: 잉크/따뜻한 앰버 계열 하나. `Assets.xcassets`의 `AccentColor` 컬러셋으로 정의(라이트/다크 각각). 앱 전역 tint.
 - 라이트/다크 **둘 다** 반드시 검수. 대비(명암비) 접근성 기준 충족.
-- **재구성 표면 팔레트(DECISIONS #15)**: 서재 홈·세션 오버레이는 `Core/DesignSystem/PassagePalette.swift`의 웜 토큰(라이트/다크 정의)을 쓴다 — 뉴트럴(`appBg·cardBody·ink·inkMuted·hairline·field…`)·액센트(`warmAccent·danger`)·책별 `Swatch`(book.id 결정적). **여전히 하드코딩 금지** — 색은 반드시 이 토큰으로.
+- **웜 팔레트(DECISIONS #15·#18)**: **전 화면**이 `Core/DesignSystem/PassagePalette.swift`의 웜 토큰(라이트/다크 정의)을 쓴다 — 뉴트럴(`appBg·cardBody·ink·inkMuted·hairline·field…`)·액센트(`warmAccent·danger`). 책별 `Swatch`(book.id 결정적)는 **독서 루프(서재 패스·세션)에 한정**. **여전히 하드코딩 금지** — 색은 반드시 이 토큰으로.
 - **화면 모드(DECISIONS #16)**: 설정에서 시스템/라이트/다크 선택, **기본=시스템**. `AppearanceMode` + `RootView.preferredColorScheme` + `@AppStorage("appearanceMode")`.
 
 ## 4. Corner Radius
