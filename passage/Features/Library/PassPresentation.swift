@@ -1,0 +1,120 @@
+//
+//  PassPresentation.swift
+//  passage
+//
+//  Book + 세션 → "패스" 카드가 그릴 값. 전부 파생 계산이다. (Session is Source of Truth)
+//  순수 값 타입 — 뷰에서 분리해 단위 테스트로 검증한다. (→ PassPresentationTests)
+//
+
+import Foundation
+
+/// 최근 여정기록 한 줄(펼친 패스에 최대 2개 표시).
+struct PassJourney: Identifiable, Hashable, Sendable {
+    let id: UUID          // 세션 id
+    let place: String     // 장소 이름(없으면 "장소 없음")
+    let meta: String      // "45분 · 16p" / "45분"
+    let date: String      // "6월 22일 (일)"
+}
+
+/// 한 책을 나타내는 패스의 표시 값.
+struct PassPresentation: Identifiable, Hashable, Sendable {
+    let id: UUID          // 책 id
+    let title: String
+    let author: String
+    let coverURL: String?
+    let swatch: PassagePalette.Swatch
+
+    let totalDuration: TimeInterval
+    /// 티켓에 크게 찍는 총 독서시간. 기록이 없으면 "아직 기록 없음".
+    let totalDurationText: String
+    let sessionCount: Int
+
+    /// 최근 여정기록 0~2개(최신순).
+    let recentJourneys: [PassJourney]
+
+    /// 진행률 0~1. `totalPageCount`나 완료 페이지가 없으면 nil → 바코드 대신 폴백 라인.
+    let progress: Double?
+    let progressPercent: Int?
+    /// progress가 nil일 때 진행률 자리에 보여줄 한 줄.
+    let fallbackLine: String?
+
+    /// 헤더 스트립 우측 날짜(최근 세션). 세션이 없으면 "아직 기록 없음".
+    let headerDate: String
+
+    init(book: Book, calendar: Calendar = .current) {
+        self.id = book.id
+        self.title = book.title
+        self.author = book.author
+        self.coverURL = book.coverRemoteURL
+        self.swatch = PassagePalette.swatch(for: book)
+
+        // 완료 세션(진행 중 제외)을 최신순으로.
+        let allSessions: [ReadingSession] = book.sessions ?? []
+        let completed: [ReadingSession] = allSessions
+            .filter { $0.endDate != nil }
+            .sorted { ($0.endDate ?? $0.startDate) > ($1.endDate ?? $1.startDate) }
+
+        self.sessionCount = completed.count
+        self.totalDuration = completed.reduce(0) { $0 + $1.duration }
+        self.totalDurationText = completed.isEmpty ? "아직 기록 없음" : totalDuration.readableDuration
+
+        self.recentJourneys = completed.prefix(2).map { session in
+            PassJourney(
+                id: session.id,
+                place: Self.placeName(session),
+                meta: Self.journeyMeta(session),
+                date: Self.dateText(session.endDate ?? session.startDate, calendar: calendar)
+            )
+        }
+
+        // 진행률: 완료 세션 중 최대 endPage / 전체 페이지 수.
+        let maxEndPage = completed.compactMap(\.endPage).max()
+        if let total = book.totalPageCount, total > 0, let maxEndPage, maxEndPage > 0 {
+            let ratio = min(1, max(0, Double(maxEndPage) / Double(total)))
+            self.progress = ratio
+            self.progressPercent = Int((ratio * 100).rounded())
+            self.fallbackLine = nil
+        } else {
+            self.progress = nil
+            self.progressPercent = nil
+            self.fallbackLine = completed.isEmpty
+                ? "아직 기록된 세션이 없어요"
+                : "\(completed.count)번의 여정 · \(totalDuration.readableDuration)"
+        }
+
+        self.headerDate = completed.first
+            .map { Self.dateText($0.endDate ?? $0.startDate, calendar: calendar) }
+            ?? "아직 기록 없음"
+    }
+
+    /// 책 목록 → 패스 목록(서재는 dateAdded 역순 쿼리이므로 그대로 매핑).
+    static func list(from books: [Book], calendar: Calendar = .current) -> [PassPresentation] {
+        books.map { PassPresentation(book: $0, calendar: calendar) }
+    }
+
+    // MARK: 파생 헬퍼
+
+    private static func placeName(_ session: ReadingSession) -> String {
+        let name = session.place?.name ?? ""
+        return name.isEmpty ? "장소 없음" : name
+    }
+
+    /// "45분 · 16p" — 페이지 델타가 있으면 붙인다.
+    private static func journeyMeta(_ session: ReadingSession) -> String {
+        var parts = [session.duration.readableDuration]
+        if let start = session.startPage, let end = session.endPage, end > start {
+            parts.append("\(end - start)p")
+        }
+        return parts.joined(separator: " · ")
+    }
+
+    /// "6월 22일 (일)" — 목업 포맷. DateFormatter(비 Sendable) 대신 캘린더 성분으로 직접 조립.
+    private static func dateText(_ date: Date, calendar: Calendar) -> String {
+        let month = calendar.component(.month, from: date)
+        let day = calendar.component(.day, from: date)
+        let weekday = calendar.component(.weekday, from: date)   // 1 = 일요일
+        let symbols = ["일", "월", "화", "수", "목", "금", "토"]
+        let w = symbols[(weekday - 1 + 7) % 7]
+        return "\(month)월 \(day)일 (\(w))"
+    }
+}
