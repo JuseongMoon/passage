@@ -12,6 +12,7 @@ import SwiftData
 
 struct BookDetailView: View {
     let book: Book
+    @Environment(\.modelContext) private var modelContext
     @State private var addingQuote = false
 
     /// 완료된 세션(여정)을 최신순으로.
@@ -72,6 +73,8 @@ struct BookDetailView: View {
                             .foregroundStyle(PassagePalette.inkMuted)
                             .padding(.top, 2)
                     }
+                    finishToggle
+                        .padding(.top, Theme.Spacing.xs)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -79,6 +82,27 @@ struct BookDetailView: View {
             .listRowBackground(Color.clear)   // 히어로는 appBg 위에 바로(카드 아님)
             .listRowInsets(EdgeInsets(top: 0, leading: Theme.Spacing.md, bottom: 0, trailing: Theme.Spacing.md))
         }
+    }
+
+    // MARK: 완독 표시 (진행 중 ↔ 다 읽음)
+
+    private var finishToggle: some View {
+        Button {
+            book.finishedDate = book.isFinished ? nil : .now
+            try? modelContext.save()
+        } label: {
+            HStack(spacing: Theme.Spacing.xxs) {
+                Image(systemName: book.isFinished ? "checkmark.seal.fill" : "book")
+                Text(book.isFinished ? "다 읽음" : "읽는 중")
+            }
+            .font(.system(size: 13, weight: .medium))
+            .foregroundStyle(book.isFinished ? PassagePalette.appBg : PassagePalette.ink)
+            .padding(.vertical, 6)
+            .padding(.horizontal, Theme.Spacing.sm)
+            .background(book.isFinished ? PassagePalette.warmAccent : PassagePalette.cardBody, in: .capsule)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(book.isFinished ? "다 읽음으로 표시됨. 눌러서 해제" : "읽는 중. 눌러서 다 읽음으로 표시")
     }
 
     // MARK: 여정 기록 (전체 세션 · 최신순)

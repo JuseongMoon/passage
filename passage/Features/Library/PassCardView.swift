@@ -123,11 +123,19 @@ struct PassCardView: View {
                     }
                 }
                 Spacer(minLength: Theme.Spacing.sm)
-                Text(pass.totalDurationText)
-                    .font(.system(size: 28, weight: .medium).monospacedDigit())
-                    .foregroundStyle(PassagePalette.ink)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.6)
+                HStack(alignment: .lastTextBaseline, spacing: Theme.Spacing.xs) {
+                    Text(pass.totalDurationText)
+                        .font(.system(size: 28, weight: .medium).monospacedDigit())
+                        .foregroundStyle(PassagePalette.ink)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                    if let percent = pass.progressPercent {
+                        Text("\(percent)%")
+                            .font(.system(size: 15, weight: .medium).monospacedDigit())
+                            .foregroundStyle(PassagePalette.inkMuted)
+                            .lineLimit(1)
+                    }
+                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             cover
@@ -200,32 +208,29 @@ struct PassCardView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    // 진행률 % 는 티켓의 총 독서시간 옆에 표시한다. 여기서는 전체 페이지 수를 모를 때만
+    // 입력 프롬프트를 둔다(알면 % 가 이미 티켓에 있으므로 이 섹션은 비운다).
     @ViewBuilder
     private var progressSection: some View {
-        Group {
-            if let progress = pass.progress, let percent = pass.progressPercent {
-                BarcodeProgressView(progress: progress, percent: percent)
-            } else {
-                // 전체 페이지 수를 모르면 진행률 대신 입력 프롬프트.
-                Button(action: onSetPageCount) {
-                    HStack {
-                        Text("독서 진행률")
-                            .font(.system(size: 12))
-                            .foregroundStyle(PassagePalette.ink)
-                        Spacer()
-                        HStack(spacing: 4) {
-                            Text("전체 페이지 수 입력")
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 10, weight: .semibold))
-                        }
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(PassagePalette.warmAccent)
+        if pass.progressPercent == nil {
+            Button(action: onSetPageCount) {
+                HStack {
+                    Text("독서 진행률")
+                        .font(.system(size: 12))
+                        .foregroundStyle(PassagePalette.ink)
+                    Spacer()
+                    HStack(spacing: 4) {
+                        Text("전체 페이지 수 입력")
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 10, weight: .semibold))
                     }
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(PassagePalette.warmAccent)
                 }
-                .buttonStyle(.plain)
             }
+            .buttonStyle(.plain)
+            .padding(.horizontal, Theme.Spacing.md)
         }
-        .padding(.horizontal, Theme.Spacing.md)
     }
 
     private var cta: some View {

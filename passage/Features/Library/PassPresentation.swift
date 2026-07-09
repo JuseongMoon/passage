@@ -45,7 +45,13 @@ struct PassPresentation: Identifiable, Hashable, Sendable {
         self.title = book.title
         self.author = book.author
         self.coverURL = book.coverRemoteURL
-        self.swatch = PassagePalette.swatch(for: book)
+        // 서재 카드색: 표지 대표색이 추출돼 있으면 그 색(은은한 톤), 없으면 book.id 해시 폴백.
+        // (서재 한정 — 중앙 swatch(for:)는 그대로라 독서여정·지도·독서 화면은 해시 유지.)
+        if let hex = book.coverColorHex, let value = UInt32(hex, radix: 16) {
+            self.swatch = PassagePalette.coverSwatch(hex: value)
+        } else {
+            self.swatch = PassagePalette.swatch(for: book)
+        }
 
         // 완료 세션(진행 중 제외)을 최신순으로.
         let allSessions: [ReadingSession] = book.sessions ?? []

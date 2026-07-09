@@ -3,7 +3,7 @@
 //  passage
 //
 //  루트 탭 셸(서재 · 독서여정 · 설정) + 전역 활성 세션 표시.
-//  회고는 독서여정 탭 안에서 열도록 통합(삭제하지 않음).
+//  독서여정은 지도 중심 화면(JournalView). 회고 진입점은 제거됨(ReflectionView 코드는 존치).
 //  독서 중이면 어느 화면에서든 ActiveSessionView를 덮어 띄운다. (ARCHITECTURE §9)
 //
 

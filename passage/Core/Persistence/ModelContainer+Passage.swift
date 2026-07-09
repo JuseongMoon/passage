@@ -15,7 +15,7 @@ enum PassageModelContainer {
 
     /// 앱 기본 컨테이너.
     static func makeShared() -> ModelContainer {
-        let schema = Schema(versionedSchema: SchemaV1.self)
+        let schema = Schema(versionedSchema: SchemaV3.self)
 
         // 1차: CloudKit 동기화 구성(entitlement의 컨테이너를 자동 사용).
         let cloudConfig = ModelConfiguration(
@@ -51,7 +51,7 @@ enum PassageModelContainer {
 
     /// Preview·테스트용 인메모리 컨테이너.
     static func makePreview() -> ModelContainer {
-        let schema = Schema(versionedSchema: SchemaV1.self)
+        let schema = Schema(versionedSchema: SchemaV3.self)
         let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         do {
             return try ModelContainer(for: schema, configurations: config)

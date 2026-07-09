@@ -84,6 +84,81 @@ enum PassagePalette {
         }
         return Int(hash % UInt64(swatches.count))
     }
+
+    // MARK: 표지 대표색 → 서재 카드 Swatch (은은한 톤 · 라이브러리 전용)
+
+    /// 표지에서 추출한 대표색(0xRRGGBB)으로 서재 카드용 **은은한** Swatch를 만든다.
+    /// - base: 채도·명도를 차분한 중간 톤 밴드로 정규화(과채도/과명암 완화, 어두운 잉크 가독 확보).
+    /// - ink: 정규화 base의 상대휘도로 어두운 잉크(#26241F) / 아주 어두우면 흰색 자동.
+    /// - cover: base를 살짝 어둡게(표지 자리표시용).
+    /// 전부 고정 hex Color(라이트/다크 동일) — 동적 프로바이더 미사용(off-main 트랩 없음).
+    nonisolated static func coverSwatch(hex: UInt32) -> Swatch {
+        var hsb = PassageColorMath.hsb(fromHex: hex)
+        hsb.s = min(hsb.s, 0.52)                          // 채도 상한(과채도 완화)
+        hsb.b = min(max(hsb.b, 0.60), 0.74)               // 명도 밴드(가독 + 너무 밝지 않게)
+        let base = PassageColorMath.hex(fromHSB: hsb)
+
+        let inkHex: UInt32 = PassageColorMath.relativeLuminance(ofHex: base) < 0.16 ? 0xFFFFFF : 0x26241F
+
+        var coverHSB = hsb
+        coverHSB.b = max(0.40, hsb.b * 0.80)              // 표지 자리표시는 살짝 어둡게
+        let cover = PassageColorMath.hex(fromHSB: coverHSB)
+
+        return Swatch(base: Color(hex: base), ink: Color(hex: inkHex), cover: Color(hex: cover))
+    }
+}
+
+// MARK: - 색 변환(HSB/휘도) — 은은한 정규화·잉크 판정용 순수 계산
+
+/// RGB↔HSB 변환과 상대휘도. `nonisolated` 순수 값 계산(뷰 격리와 무관, 테스트 대상).
+enum PassageColorMath {
+    struct HSB: Equatable { var h: Double; var s: Double; var b: Double }   // 각 0…1
+
+    nonisolated static func hsb(fromHex hex: UInt32) -> HSB {
+        let r = Double((hex >> 16) & 0xFF) / 255
+        let g = Double((hex >> 8) & 0xFF) / 255
+        let b = Double(hex & 0xFF) / 255
+        let mx = max(r, g, b), mn = min(r, g, b), delta = mx - mn
+        var h = 0.0
+        if delta != 0 {
+            if mx == r { h = ((g - b) / delta).truncatingRemainder(dividingBy: 6) }
+            else if mx == g { h = (b - r) / delta + 2 }
+            else { h = (r - g) / delta + 4 }
+            h /= 6
+            if h < 0 { h += 1 }
+        }
+        let s = mx == 0 ? 0 : delta / mx
+        return HSB(h: h, s: s, b: mx)
+    }
+
+    nonisolated static func hex(fromHSB hsb: HSB) -> UInt32 {
+        let h = hsb.h * 6
+        let i = floor(h)
+        let f = h - i
+        let p = hsb.b * (1 - hsb.s)
+        let q = hsb.b * (1 - f * hsb.s)
+        let t = hsb.b * (1 - (1 - f) * hsb.s)
+        let (r, g, b): (Double, Double, Double)
+        switch Int(i) % 6 {
+        case 0: (r, g, b) = (hsb.b, t, p)
+        case 1: (r, g, b) = (q, hsb.b, p)
+        case 2: (r, g, b) = (p, hsb.b, t)
+        case 3: (r, g, b) = (p, q, hsb.b)
+        case 4: (r, g, b) = (t, p, hsb.b)
+        default: (r, g, b) = (hsb.b, p, q)
+        }
+        func byte(_ c: Double) -> UInt32 { UInt32((min(max(c, 0), 1) * 255).rounded()) }
+        return (byte(r) << 16) | (byte(g) << 8) | byte(b)
+    }
+
+    /// WCAG 상대휘도(0…1). 잉크(어두운/흰) 판정용.
+    nonisolated static func relativeLuminance(ofHex hex: UInt32) -> Double {
+        func lin(_ c: Double) -> Double { c <= 0.03928 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4) }
+        let r = lin(Double((hex >> 16) & 0xFF) / 255)
+        let g = lin(Double((hex >> 8) & 0xFF) / 255)
+        let b = lin(Double(hex & 0xFF) / 255)
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b
+    }
 }
 
 // MARK: - Color(hex:) 헬퍼

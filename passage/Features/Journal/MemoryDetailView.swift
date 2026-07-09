@@ -12,6 +12,7 @@ import SwiftData
 struct MemoryDetailView: View {
     let session: ReadingSession
     @State private var editingNote = false
+    @State private var changingPlace = false
 
     var body: some View {
         ZStack {
@@ -32,6 +33,9 @@ struct MemoryDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $editingNote) {
             NoteEditorView(session: session)
+        }
+        .sheet(isPresented: $changingPlace) {
+            ChangePlaceView(session: session)
         }
     }
 
@@ -105,8 +109,8 @@ struct MemoryDetailView: View {
     // MARK: 장소
 
     @ViewBuilder private var placeSection: some View {
-        if let place = session.place {
-            Section {
+        Section {
+            if let place = session.place {
                 HStack(alignment: .firstTextBaseline, spacing: Theme.Spacing.xs) {
                     Image(systemName: "mappin.and.ellipse")
                         .foregroundStyle(PassagePalette.warmAccent)
@@ -132,11 +136,21 @@ struct MemoryDetailView: View {
                         .padding(.vertical, Theme.Spacing.xxs)
                     }
                 }
-            } header: {
-                sectionHeader("장소")
+                Button("위치 변경") { changingPlace = true }
+                    .font(.subheadline)
+                    .foregroundStyle(PassagePalette.warmAccent)
+            } else {
+                Button {
+                    changingPlace = true
+                } label: {
+                    Label("위치 추가", systemImage: "mappin.and.ellipse")
+                        .foregroundStyle(PassagePalette.warmAccent)
+                }
             }
-            .listRowBackground(PassagePalette.cardBody)
+        } header: {
+            sectionHeader("장소")
         }
+        .listRowBackground(PassagePalette.cardBody)
     }
 
     // MARK: 헬퍼

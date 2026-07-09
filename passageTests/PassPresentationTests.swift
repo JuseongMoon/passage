@@ -9,6 +9,7 @@
 import Testing
 import SwiftData
 import Foundation
+import SwiftUI
 @testable import passage
 
 @MainActor
@@ -173,5 +174,49 @@ struct PassPresentationTests {
         let book = Book(title: "책")
         let expected = PassagePalette.swatches[PassagePalette.swatchIndex(for: book.id)]
         #expect(PassagePalette.swatch(for: book) == expected)
+    }
+
+    // MARK: 표지 대표색 → 서재 카드색
+
+    @Test func presentationUsesCoverColorWhenPresent() {
+        let book = Book(title: "책")
+        book.coverColorHex = "E0A040"                       // 앰버
+        #expect(PassPresentation(book: book).swatch == PassagePalette.coverSwatch(hex: 0xE0A040))
+    }
+
+    @Test func presentationFallsBackToHashWhenNoCoverColor() {
+        let book = Book(title: "책")                        // coverColorHex == nil
+        #expect(PassPresentation(book: book).swatch == PassagePalette.swatch(for: book))
+    }
+
+    @Test func coverSwatchDarkInkOnLightWarmColor() {
+        // 밝은 웜 색 → 정규화해도 고휘도 → 어두운 잉크(프로토타입 톤).
+        #expect(PassagePalette.coverSwatch(hex: 0xE0A040).ink == Color(hex: 0x26241F))
+    }
+
+    @Test func coverSwatchWhiteInkOnDeepBlue() {
+        // 딥 블루 → 정규화해도 저휘도 → 흰 텍스트 자동.
+        #expect(PassagePalette.coverSwatch(hex: 0x14205A).ink == Color(hex: 0xFFFFFF))
+    }
+
+    // MARK: 색 변환 유틸(PassageColorMath)
+
+    @Test func relativeLuminanceOrdersColors() {
+        #expect(PassageColorMath.relativeLuminance(ofHex: 0xFFFFFF) > 0.9)
+        #expect(PassageColorMath.relativeLuminance(ofHex: 0x000000) < 0.01)
+        #expect(
+            PassageColorMath.relativeLuminance(ofHex: 0xEC9C2A)
+                > PassageColorMath.relativeLuminance(ofHex: 0x14205A)
+        )
+    }
+
+    @Test func hsbHexRoundTripWithinRounding() {
+        func comp(_ v: UInt32, _ shift: UInt32) -> Int { Int((v >> shift) & 0xFF) }
+        for hex in [0xEC9C2A, 0x68839E, 0xA36477, 0x102030, 0xFFFFFF] as [UInt32] {
+            let back = PassageColorMath.hex(fromHSB: PassageColorMath.hsb(fromHex: hex))
+            #expect(abs(comp(back, 16) - comp(hex, 16)) <= 2)
+            #expect(abs(comp(back, 8) - comp(hex, 8)) <= 2)
+            #expect(abs(comp(back, 0) - comp(hex, 0)) <= 2)
+        }
     }
 }

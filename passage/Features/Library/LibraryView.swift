@@ -14,6 +14,7 @@ struct LibraryView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(AppDependencies.self) private var dependencies
     @Environment(ReadingSessionController.self) private var sessionController
+    @Environment(CoverColorFiller.self) private var coverColorFiller
 
     @Query(sort: \Book.dateAdded, order: .reverse) private var books: [Book]
 
@@ -60,6 +61,9 @@ struct LibraryView: View {
         }
         .onChange(of: books.count) { _, _ in
             front = min(front, max(0, books.count - 1))
+        }
+        .task {
+            coverColorFiller.backfillMissing()   // 표지색 미추출 책을 백그라운드로 채움(멱등)
         }
     }
 
@@ -200,4 +204,5 @@ struct LibraryView: View {
         .modelContainer(container)
         .environment(AppDependencies())
         .environment(ReadingSessionController(modelContext: ctx))
+        .environment(CoverColorFiller(modelContext: ctx))
 }

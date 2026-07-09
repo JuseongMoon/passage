@@ -138,4 +138,36 @@
 - **상태**: ✅ 빌드·테스트 통과(`PassPresentationTests`·`ReadingSessionControllerTests`), 카드 렌더로 도달 페이지 진행 확인.
 
 ---
-*새 결정은 아래에 #20부터 이어서 기록한다.*
+### #20 — 독서여정 탭 지도 중심 재설계 + 책 완독 상태 도입 ✅
+- **결정**: 2번 탭 `JournalView`를 **리스트 타임라인 → 지도 중심 화면**으로 전면 재설계(프로토타입 `Passage Journey.html` 기준). "무엇을·어디서·얼마나 읽었나"를 **공간(지도)으로 회상**한다 — Memory over Productivity에 부합(지도는 압박이 아닌 회상 도구).
+  - **구성**: 헤더 요약 한 줄(`N시간 동안 M권의 책을 K곳에서 읽었어요`, 전체 누적) + **Naver 지도 히어로**(책 표지를 읽은 장소에 마커로) + `전체/진행 중/완료` 필터 캡슐 + 가로 카드 캐러셀(표지·총시간·`N곳의 여정`).
+  - **인터랙션**: 카드/마커 탭 → 그 책 **포커스**(지도가 그 책의 장소들로 이동, **점선 경로(polyline)**로 방문 순서 연결, 각 장소에 `이름 · 체류시간` 캡션, 선택 카드 강조·나머지 흐림, `전체 여정보기` 버튼 → 개요 복귀). 필터는 지도 마커+카드를 동시에 거른다.
+- **완독 상태(진행 중/완료)**: `Book`에 `finishedDate: Date?` 신설(옵셔널→CloudKit 안전, 파괴적 아님) + **SchemaV2 + `.lightweight` 마이그레이션**(#12 관용대로). `진행 중`=nil / `완료`=값 있음. `BookDetailView`에 "다 읽음/읽는 중" 토글. (필터의 근간 — 기존엔 완료 개념 자체가 없었음.)
+- **좌표 정책(사용자 결정)**: 신규 장소 입력 시 **좌표 필수화**(`NewPlaceView` 지점 미선택 시 저장 불가). 기존 좌표 없는 장소는 지도 렌더 시 **현재 위치로 fallback**(권한 있을 때 조용히 취득, 없으면 그 장소만 생략 — 프롬프트 강요 안 함). 독서기록에서 **독서 위치 변경**(`ChangePlaceView`: 기존 장소 재사용/새 장소 → `assignPlace`, `MemoryDetailView` "위치 변경/추가"). ended 인라인 quick-place는 GPS 자동채움+fallback로 커버(calm 유지 위해 강제 안 함).
+- **회고**: 지도 중심 단순화를 위해 **독서여정 탭의 회고 진입점 제거**(#18에서 통합했던 툴바 "회고" 버튼/시트 삭제). `ReflectionView`/`ReflectionOrganizer` **코드는 존치**(재도입 여지).
+- **집계·렌더 구조**: 책별 파생값은 **Journal 로컬 순수 타입 `BookJourney`/`JourneyStop`/`JourneySummary`**(Core 모델에서만 파생, Feature 격리상 Library의 `PassPresentation` 미import)로 신설 — 완료 세션을 장소별로 첫 방문 순 그룹핑(중복 제거 `Set<UUID>`, `ReflectionOrganizer` 패턴 응용). 지도는 **전용 `JourneyMapView`**(다중 마커·`NMFPolylineOverlay`+`.pattern` 점선·`NMFOverlayImage` 표지 마커·`NMGLatLngBounds` fit) — 장소 피커용 단일 지점 `NaverMapView`는 **건드리지 않음**(무회귀). 표지→마커 UIImage는 `BookCoverMarker`(다운로드·swatch 폴백·캐시). SDK 콜백은 기존 관용구(Sendable 값만, `Task{@MainActor}`), 색은 traitCollection으로 미리 해석한 정적 UIColor(off-main dynamicProvider 회피, #14).
+- **트레이드오프·주의**:
+  - `NMFCameraUpdate(fit:padding:)`의 padding이 실기에서 무시되어 극단 마커가 가장자리에 걸림 → **bounds를 직접 35% 확장**해 여백 확보. fit은 레이아웃 이후(뷰 크기>0) 실행되도록 async로 미룸(첫 `updateUIView`는 크기 0).
+  - 좌표 fallback은 무좌표 legacy 장소를 현재 위치에 몰리게 함(의도된 브리지 — 신규 필수화로 점진 해소).
+  - 개발 중 레거시 SwiftData 스토어(스키마 이력 불일치)는 V1→V2 마이그레이션에서 abort → **개발 스토어 초기화 필요**(앱 미출시라 실 사용자 마이그레이션은 무해).
+- **상태**: ✅ 빌드·전체 테스트(59, `BookJourneyTests` 신규) 통과, 시뮬레이터 E2E(지도 타일·표지 마커·개요/포커스·점선 경로·캡션·캐러셀 강조/필터) 스크린샷 검증, 프로덕션 런치·서재 무회귀 확인.
+
+---
+### #21 — 서재 카드색을 표지 대표색에서 추출 + 진행률 표시 간소화 ✅
+- **결정**: 서재 보딩패스 카드의 헤더 색을 **book.id 해시 프리셋 → 책 표지의 대표색**에서 뽑는다(개선판 프로토타입 `기획문서/Passage Home v2.html` 기준). 색 가공은 **은은한 톤**(채도·명도를 중간 밴드로 정규화), 헤더 텍스트는 **명도 기반**(밝으면 어두운 잉크 `#26241F`, 아주 어두우면 흰색 자동)으로 프로토타입의 "은은한 헤더 + 다크 텍스트"를 재현.
+- **범위 = 서재 카드만(사용자 결정)**: 중앙 `PassagePalette.swatch(for:)`는 **불변** → 표지색 분기는 `PassPresentation`에만. `BookJourney`(독서여정 카드·지도 마커)·`ReadingSessionView`(독서 중 화면)는 기존 해시 팔레트 유지.
+- **진행률 표시(사용자 지시)**: 바코드(`BarcodeProgressView`) **제거**, 진행률 %는 **총 독서시간 옆에 숫자만**(`2시간 45분 48%`). 전체 페이지 수 모를 때의 "전체 페이지 수 입력" 프롬프트는 유지(% 가 없을 때만 노출). `BarcodeProgressView.swift` 삭제.
+- **구현**:
+  - `Book.coverColorHex: String?`("RRGGBB") 신설 + **SchemaV3 lightweight 마이그레이션**(#12·finishedDate와 동일 패턴).
+  - `CoverColorFiller`(`Features/Book/`, `PageCountFiller` 미러) — 서재 진입 `.task`에서 `backfillMissing()`(표지 있고 색 없는 책만, 멱등). 추출 `extractHex`는 **off-main**(`URLSession` 다운로드 → `CIFilter.areaAverage()` 1×1 렌더 → RGBA), 모델 쓰기만 MainActor. 신규 책도 이 백필로 커버(AddBook/Search 무변경).
+  - `PassagePalette.coverSwatch(hex:)` + `PassageColorMath`(RGB↔HSB·상대휘도) — 전부 **고정 hex Color**(라이트/다크 동일, 동적 프로바이더 미사용 → off-main 트랩 #14 없음). base=은은한 정규화(S≤0.52, B∈[0.60,0.74]), ink=휘도<0.16이면 흰색.
+  - 표지 없음/추출 실패 → 기존 해시 팔레트 폴백(무회귀).
+- **트레이드오프·주의**:
+  - **평균색(CIAreaAverage)** 은 은은한 결과를 잘 주지만 복잡한 표지는 회색에 가까울 수 있음(정규화로 완화, 필요 시 최빈색 방식 여지). 실기 검증: The Waves→세이지, Piranesi→테라코타, Field Guide→그레이로 표지와 어울리는 은은한 톤 확인.
+  - **비동기 지연**: 첫 진입 시 폴백색 → 추출 후 갱신(progressive). 다크 모드는 헤더 고정색+다크 잉크 유지(가독), 바디는 적응.
+  - **폴백 톤 혼재**: 표지 있는 책(은은+다크잉크)과 없는 책(프리셋 선명+흰잉크) 혼재 — 대부분 표지 있어 수용.
+  - **⚠️ 마이그레이션**: CloudKit 백엔드 스토어의 lightweight 마이그레이션이 기존 개발 스토어에서 abort(V2→V3, #20의 V1→V2와 동일 증상) → **개발 스토어 초기화 필요**(앱 미출시라 무해). **실 사용자 마이그레이션 정확성은 미검증 — 스키마 변경 배포 전 재검토 필요**(반복 이슈).
+- **상태**: ✅ 빌드·전체 65 테스트(신규 6: coverSwatch·폴백·명도 잉크·색 math) 그린, 실제 표지 URL로 시뮬레이터 E2E(표지색 카드·% 표시·바코드 제거·라이트/다크·해시 폴백) 스크린샷 검증. 플랜 `~/.claude/plans/2-sparkling-puffin.md`.
+
+---
+*새 결정은 아래에 #22부터 이어서 기록한다.*

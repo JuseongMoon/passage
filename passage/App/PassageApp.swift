@@ -13,6 +13,7 @@ struct PassageApp: App {
     @State private var dependencies: AppDependencies
     @State private var sessionController: ReadingSessionController
     @State private var pageCountFiller: PageCountFiller
+    @State private var coverColorFiller: CoverColorFiller
     private let modelContainer: ModelContainer
 
     init() {
@@ -24,6 +25,7 @@ struct PassageApp: App {
         _pageCountFiller = State(initialValue: PageCountFiller(
             modelContext: container.mainContext, service: dependencies.pageCount
         ))
+        _coverColorFiller = State(initialValue: CoverColorFiller(modelContext: container.mainContext))
     }
 
     var body: some Scene {
@@ -32,6 +34,7 @@ struct PassageApp: App {
                 .environment(dependencies)
                 .environment(sessionController)
                 .environment(pageCountFiller)
+                .environment(coverColorFiller)
         }
         .modelContainer(modelContainer)
     }

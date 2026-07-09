@@ -32,5 +32,6 @@ extension View {
             .environment(AppDependencies())
             .environment(ReadingSessionController(modelContext: container.mainContext))
             .environment(PageCountFiller(modelContext: container.mainContext, service: StubPageCountService()))
+            .environment(CoverColorFiller(modelContext: container.mainContext))
     }
 }

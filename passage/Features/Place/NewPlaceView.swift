@@ -33,7 +33,9 @@ struct NewPlaceView: View {
     @State private var skipNextGeocode = false
 
     private var canSave: Bool {
-        !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isSaving
+        !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && selectedPoint != nil          // 위치(좌표) 필수 — 지도 여정에 꽂으려면 좌표가 있어야 한다
+            && !isSaving
     }
 
     var body: some View {
@@ -101,9 +103,11 @@ struct NewPlaceView: View {
                             .foregroundStyle(.secondary)
                     }
                 } header: {
-                    Text("위치 (선택)")
+                    Text("위치")
                 } footer: {
-                    Text("지도를 눌러 지점을 고르거나 현재 위치를 사용하세요.")
+                    Text(selectedPoint == nil
+                         ? "지도를 눌러 지점을 고르거나 현재 위치를 사용하세요. 위치는 꼭 필요해요."
+                         : "지도를 눌러 지점을 바꿀 수 있어요.")
                 }
 
                 Section("사진 (선택)") {
