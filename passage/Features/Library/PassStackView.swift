@@ -17,6 +17,7 @@ enum PassLayout {
     static let topMin: CGFloat = 38          // 위 헤더가 더는 올라가지 않는 하한(추가 알약 자리)
     static let hPadding: CGFloat = 16
     static let topCornerRadius: CGFloat = 22
+    static let notchRadius: CGFloat = 11     // 절취선 양옆 반원 노치(티켓 실루엣)
     static let bottomAnchorInset: CGFloat = 112   // 하단에서 첫 아래-헤더가 내미는 높이
     static let belowStep: CGFloat = 48
     static let swipeThreshold: CGFloat = 34
@@ -53,7 +54,9 @@ struct PassStackView: View {
                     )
                     .padding(.horizontal, PassLayout.hPadding)
                     .offset(y: topOffset(for: index, front: front, height: height))
-                    .zIndex(zIndex(for: index, front: front))
+                    // zIndex는 원래 보간이 안 돼(순간 전환) 카드가 겹칠 때 draw order가 툭 바뀐다.
+                    // depth를 Animatable로 프레임마다 보간 → 카드가 교차하는 시점에 순서가 바뀜.
+                    .modifier(DepthEffect(depth: zIndex(for: index, front: front)))
                 }
 
                 addPill
@@ -141,5 +144,19 @@ struct PassStackView: View {
 
     private var motion: Animation? {
         reduceMotion ? nil : .snappy(duration: 0.28)
+    }
+}
+
+/// zIndex를 애니메이션 가능하게 만든다. `.zIndex()`는 값이 보간되지 않아 front 전환 순간
+/// draw order가 툭 바뀌는데(깜빡임), depth를 `animatableData`로 두면 프레임마다 보간되어
+/// 재적용된다 → 겹친 카드들이 실제로 교차하는 시점에 순서가 부드럽게 바뀐다.
+private struct DepthEffect: ViewModifier, Animatable {
+    var depth: Double
+    var animatableData: Double {
+        get { depth }
+        set { depth = newValue }
+    }
+    func body(content: Content) -> some View {
+        content.zIndex(depth)
     }
 }

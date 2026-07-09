@@ -20,58 +20,87 @@ struct PassCardView: View {
     let onDelete: () -> Void
     let onSetPageCount: () -> Void
 
+    /// 절취선 Y(카드 상단 기준) — 하단 CTA 바로 위 파선 위치를 측정해 노치를 맞춘다.
+    @State private var tearY: CGFloat = 0
+    private static let tearSpace = "passCard"
+
     var body: some View {
         VStack(spacing: 0) {
             header
-            if isFront {
-                expandedBody
-                    .frame(
-                        minHeight: max(0, expandedMinHeight - PassLayout.headerHeight),
-                        alignment: .top
-                    )
-                    .frame(maxWidth: .infinity)
-                    .background(PassagePalette.cardBody)
-            }
+            // 바디를 항상 렌더하되 비-front는 높이 0으로 클립한다.
+            //  - front 전환 시 이 높이가 0↔펼침으로 '애니메이션'되어 컬러 바디가 팝하지 않고
+            //    카드 움직임과 함께 부드럽게 펼쳐지고/접힌다.
+            //  - 비-front가 0이라 아래 peek 카드의 바디가 다음 peek을 덮는 문제도 사라진다.
+            //  - draw order는 PassStackView의 DepthEffect가 보간해 z 깜빡임을 막는다.
+            expandedBody
+                .frame(maxWidth: .infinity)
+                .frame(
+                    height: isFront ? max(0, expandedMinHeight - PassLayout.headerHeight) : 0,
+                    alignment: .top
+                )
+                .clipped()
         }
-        .clipShape(
-            UnevenRoundedRectangle(
-                topLeadingRadius: PassLayout.topCornerRadius,
-                bottomLeadingRadius: 0,
-                bottomTrailingRadius: 0,
-                topTrailingRadius: PassLayout.topCornerRadius,
-                style: .continuous
-            )
-        )
+        // 컬러(swatch.base)를 카드 전체에 한 장으로 깐다 — 헤더/티켓을 각각 칠하면 그 사이
+        // 서브픽셀 이음새(seam)가 스와이프 중 벌어졌다 붙는다. 뉴트럴은 expandedBody의 여정
+        // 영역에만 얹으므로, 위쪽 컬러 영역은 끊김 없는 한 장이 된다.
+        .background(pass.swatch.base)
+        // 절취선(파선) 위치를 카드 상단 기준으로 측정하기 위한 좌표 공간.
+        .coordinateSpace(.named(Self.tearSpace))
+        .clipShape(cardShape)
+        // 노치가 바디(크림)·앱 배경과 색이 비슷해도 티켓 실루엣이 또렷하게 읽히도록 얇은 외곽선.
+        // 상시 렌더 + opacity: 조건부 삽입/제거면 스와이프 중 stroke가 제자리에 잔류하므로 항상 그린다.
+        .overlay {
+            cardShape.stroke(PassagePalette.ticketDash, lineWidth: 1)
+                .opacity(isFront ? 1 : 0)
+        }
         .shadow(color: .black.opacity(0.12), radius: 14, x: 0, y: -2)
+        // 접힘(비-front)이면 파선이 사라져 0이 전달되는데, 그때 노치 중심이 0으로 끌려가지 않도록 무시.
+        .onPreferenceChange(TearYKey.self) { value in
+            if value > 0 { tearY = value }
+        }
+    }
+
+    /// 항상 같은 concrete 타입(TicketShape)을 쓴다 — AnyShape로 타입을 교체하면 clip/stroke가
+    /// 뷰 identity 변경으로 취급돼 스와이프 중 외곽선 잔류·모서리 사각형 깜빡임을 유발한다.
+    /// 비-front는 notchRadius 0 → 노치 없는(위 모서리만 둥근) 사각형과 동일.
+    private var cardShape: TicketShape {
+        TicketShape(
+            topRadius: PassLayout.topCornerRadius,
+            notchRadius: (isFront && tearY > PassLayout.headerHeight) ? PassLayout.notchRadius : 0,
+            notchCenterY: tearY
+        )
     }
 
     // MARK: 헤더 스트립
 
     private var header: some View {
         HStack(spacing: Theme.Spacing.sm) {
-            Text(pass.title)
-                .font(.system(size: 16))
-                .foregroundStyle(pass.swatch.ink)
-                .lineLimit(1)
-                .truncationMode(.tail)
-            Spacer(minLength: Theme.Spacing.sm)
-            Text(pass.headerDate)
-                .font(.system(size: 11))
-                .tracking(0.8)
-                .foregroundStyle(pass.swatch.dim)
-                .lineLimit(1)
             if isFront {
+                // 펼친 카드는 큰 티켓에 제목이 나오므로 스트립엔 메뉴만 둔다(목업).
+                // 컬러(swatch.base)는 여기서 티켓 블록까지 그대로 이어진다.
+                Spacer(minLength: 0)
                 menuButton
+            } else {
+                Text(pass.title)
+                    .font(.system(size: 16))
+                    .foregroundStyle(pass.swatch.ink)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                Spacer(minLength: Theme.Spacing.sm)
+                Text(pass.headerDate)
+                    .font(.system(size: 11))
+                    .tracking(0.8)
+                    .foregroundStyle(pass.swatch.dim)
+                    .lineLimit(1)
             }
         }
         .padding(.horizontal, Theme.Spacing.md)
         .frame(height: PassLayout.headerHeight)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(pass.swatch.base)
         .contentShape(.rect)
         .onTapGesture { if !isFront { onOpen() } }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(pass.title), \(pass.headerDate)")
+        .accessibilityElement(children: isFront ? .contain : .combine)
+        .accessibilityLabel(isFront ? "" : "\(pass.title), \(pass.headerDate)")
         .accessibilityAddTraits(isFront ? [] : .isButton)
     }
 
@@ -97,14 +126,37 @@ struct PassCardView: View {
 
     private var expandedBody: some View {
         VStack(spacing: 0) {
-            ticket
-            journeys
-                .padding(.vertical, Theme.Spacing.md)
-            progressSection
-            cta
-                .padding(.top, Theme.Spacing.lg)
-            Spacer(minLength: 0)   // 뉴트럴 배경이 아래를 채운다(목업)
+            ticket   // 배경 없음 → 카드 컬러(swatch.base)가 헤더에서 이어져 보인다.
+            // 뉴트럴 영역: 여정부터 아래만 cardBody. 컬러/뉴트럴 경계 seam을 피하려
+            // 컬러는 카드 전체 배경으로 깔고 여기서만 뉴트럴을 그 위에 얹는다.
+            VStack(spacing: 0) {
+                journeys
+                    .padding(.vertical, Theme.Spacing.md)
+                progressSection
+                perforation
+                cta
+                    .padding(.top, Theme.Spacing.sm)
+                Spacer(minLength: 0)   // 뉴트럴 배경이 아래를 채운다(목업)
+            }
+            .frame(maxWidth: .infinity)
+            .background(PassagePalette.cardBody)
         }
+    }
+
+    /// 절취선 — "여정 시작하기" 바로 위 가로 파선. 자기 중심 Y를 카드 좌표계로 측정해
+    /// TicketShape 노치가 정확히 이 높이에 오도록 한다(콘텐츠·Dynamic Type에 따라 가변).
+    private var perforation: some View {
+        DashedLine()
+            .background(
+                GeometryReader { geo in
+                    Color.clear.preference(
+                        key: TearYKey.self,
+                        value: geo.frame(in: .named(Self.tearSpace)).midY
+                    )
+                }
+            )
+            .padding(.horizontal, PassLayout.notchRadius + 2)
+            .padding(.top, Theme.Spacing.lg)
     }
 
     private var ticket: some View {
@@ -113,12 +165,12 @@ struct PassCardView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(pass.title)
                         .font(.system(size: 18))
-                        .foregroundStyle(PassagePalette.ink)
+                        .foregroundStyle(pass.swatch.ink)
                         .lineLimit(2)
                     if !pass.author.isEmpty {
                         Text(pass.author)
                             .font(.system(size: 12))
-                            .foregroundStyle(PassagePalette.ink)
+                            .foregroundStyle(pass.swatch.dim)
                             .lineLimit(1)
                     }
                 }
@@ -126,13 +178,13 @@ struct PassCardView: View {
                 HStack(alignment: .lastTextBaseline, spacing: Theme.Spacing.xs) {
                     Text(pass.totalDurationText)
                         .font(.system(size: 28, weight: .medium).monospacedDigit())
-                        .foregroundStyle(PassagePalette.ink)
+                        .foregroundStyle(pass.swatch.ink)
                         .lineLimit(1)
                         .minimumScaleFactor(0.6)
                     if let percent = pass.progressPercent {
                         Text("\(percent)%")
                             .font(.system(size: 15, weight: .medium).monospacedDigit())
-                            .foregroundStyle(PassagePalette.inkMuted)
+                            .foregroundStyle(pass.swatch.dim)
                             .lineLimit(1)
                     }
                 }
@@ -142,8 +194,7 @@ struct PassCardView: View {
         }
         .frame(height: 100)   // 표지 높이에 고정 → 총시간이 표지 하단에 정렬, Spacer가 카드 채움과 경쟁 방지
         .padding(Theme.Spacing.md)
-        .overlay(alignment: .top) { DashedLine() }
-        .overlay(alignment: .bottom) { DashedLine() }
+        // 배경 없음 — 컬러(swatch.base)는 카드 전체 배경 한 장으로 깔려 헤더에서 끊김 없이 이어진다.
     }
 
     private var cover: some View {
@@ -246,6 +297,40 @@ struct PassCardView: View {
     }
 }
 
+/// 보딩패스형 티켓 실루엣. 위 모서리는 둥글게, `notchCenterY`(절취선)에서 좌·우에
+/// 반원 노치를 파 "뜯는 티켓" 느낌을 준다. 아래 모서리는 스택에 맞물리도록 각지게 둔다.
+private struct TicketShape: Shape {
+    var topRadius: CGFloat
+    var notchRadius: CGFloat
+    var notchCenterY: CGFloat
+
+    // notchRadius·notchCenterY만 보간(topRadius는 상수 → 모서리 사각형 깜빡임을 표현 불가능하게 함).
+    var animatableData: AnimatablePair<CGFloat, CGFloat> {
+        get { AnimatablePair(notchRadius, notchCenterY) }
+        set {
+            notchRadius = newValue.first
+            notchCenterY = newValue.second
+        }
+    }
+
+    func path(in rect: CGRect) -> Path {
+        let base = UnevenRoundedRectangle(
+            topLeadingRadius: topRadius,
+            bottomLeadingRadius: 0,
+            bottomTrailingRadius: 0,
+            topTrailingRadius: topRadius,
+            style: .continuous
+        ).path(in: rect)
+
+        let d = notchRadius * 2
+        let left = Path(ellipseIn: CGRect(
+            x: rect.minX - notchRadius, y: notchCenterY - notchRadius, width: d, height: d))
+        let right = Path(ellipseIn: CGRect(
+            x: rect.maxX - notchRadius, y: notchCenterY - notchRadius, width: d, height: d))
+        return base.subtracting(left).subtracting(right)
+    }
+}
+
 /// 티켓 절취선(가로 파선).
 private struct DashedLine: View {
     var body: some View {
@@ -257,5 +342,13 @@ private struct DashedLine: View {
             .stroke(PassagePalette.ticketDash, style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
         }
         .frame(height: 1)
+    }
+}
+
+/// 절취선(파선)의 중심 Y를 카드 좌표계로 전달하는 PreferenceKey.
+private struct TearYKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
     }
 }
