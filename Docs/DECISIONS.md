@@ -170,4 +170,12 @@
 - **상태**: ✅ 빌드·전체 65 테스트(신규 6: coverSwatch·폴백·명도 잉크·색 math) 그린, 실제 표지 URL로 시뮬레이터 E2E(표지색 카드·% 표시·바코드 제거·라이트/다크·해시 폴백) 스크린샷 검증. 플랜 `~/.claude/plans/2-sparkling-puffin.md`.
 
 ---
-*새 결정은 아래에 #22부터 이어서 기록한다.*
+### #22 — VersionedSchema+MigrationPlan 제거, 자동 lightweight 마이그레이션으로 전환 ✅ (#12 대체)
+- **문제**: `#20`(SchemaV2)·`#21`(SchemaV3)에서 버전 스키마를 추가했으나, **`SchemaV1/V2/V3`가 모두 같은 현재 `Book` 클래스**(모든 필드 포함)를 가리켜 세 버전의 **체크섬이 동일** → 기존 스토어가 있는 기기/시뮬레이터에서 `ModelContainer(for:migrationPlan:)` 생성 시 **`NSInvalidArgumentException: 'Duplicate version checksums detected.'` 런치 크래시**(사용자 리포트, iPhone 17 Pro Max). 개발 중 fresh 스토어(초기화)에선 우회돼 안 보였을 뿐, 근본은 코드 버그.
+- **근본 원인**: SwiftData `VersionedSchema`는 **버전마다 모델 스냅샷**(그 시점의 필드로 고정된 별도 타입)을 가져야 체크섬이 달라진다. 하나의 진화하는 `Book`을 여러 버전이 공유하면 전부 동일 체크섬. `#12`가 "1일차 VersionedSchema+MigrationPlan"을 정했지만 스냅샷 없이 도입해 실질적으로 미작동(마이그레이션 abort·중복 체크섬).
+- **결정**: 앱은 **미출시**(마이그레이션할 실 버전 없음)이고 지금까지 변경이 전부 **additive(옵셔널 필드 추가)** 이므로, **`VersionedSchema`+`MigrationPlan`을 제거**하고 **단일 `Schema([Book, ReadingSession, Place, Quote, PlacePhoto])` + `migrationPlan` 미지정(SwiftData 자동 lightweight 마이그레이션)** 으로 전환. `SchemaV1/V2/V3.swift`·`PassageMigrationPlan.swift` 삭제. 자동 마이그레이션이 기존 스토어에 옵셔널 컬럼을 안전하게 추가.
+- **향후**: **비-additive/파괴적 변경**(필드 삭제·타입 변경·관계 재구성)이나 **출시 후 버전 간 마이그레이션**이 필요해지면, 그때 **버전별 모델 스냅샷을 제대로 갖춘 `VersionedSchema`+`MigrationStage`(custom 포함)** 를 도입한다(#12의 의도를 올바른 형태로). 파괴적 변경 전 사용자 확인 원칙 유지.
+- **상태**: ✅ 빌드·전체 65 테스트 그린. **사용자 시뮬레이터(iPhone 17 Pro Max, 기존 실데이터 스토어 유지)에서 크래시 없이 실행·자동 마이그레이션·표지색 렌더 확인**(1Q84→그레이라벤더, 소년이온다→앰버, 헤일메리→퍼플). fresh 설치도 정상.
+
+---
+*새 결정은 아래에 #23부터 이어서 기록한다.*

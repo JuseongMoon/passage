@@ -20,9 +20,9 @@ nonisolated final class Book {
     var totalPageCount: Int?
     var coverRemoteURL: String?        // 검색 API가 준 표지 URL
     var coverImageRef: String?         // 로컬 ImageStore 참조(표지 캐시)
-    var coverColorHex: String?         // 표지 대표색 "RRGGBB"(서재 카드색 소스). 미추출/표지없음이면 nil → 해시 폴백. (SchemaV3)
+    var coverColorHex: String?         // 표지 대표색 "RRGGBB"(서재 카드색 소스). 미추출/표지없음이면 nil → 해시 폴백.
     var dateAdded: Date = Date()
-    var finishedDate: Date?            // 완독 표시(다 읽은 날). nil = 읽는 중. (SchemaV2)
+    var finishedDate: Date?            // 완독 표시(다 읽은 날). nil = 읽는 중.
 
     // 관계는 optional + inverse 명시. 책 삭제 시 그 책의 세션(기억)도 함께 삭제.
     @Relationship(deleteRule: .cascade, inverse: \ReadingSession.book)
