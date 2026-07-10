@@ -3,8 +3,9 @@
 //  passage
 //
 //  독서여정 — "무엇을·어디서·얼마나 읽었나"를 지도로 회상한다.
-//  책 표지를 읽은 장소에 꽂고, 한 책을 고르면 그 책의 장소들을 점선 경로로 잇는다.
-//  전체/진행 중/완료 필터가 지도 마커와 카드를 함께 거른다. 서재와 같은 웜 팔레트 톤. (→ DECISIONS #18)
+//  풀블리드 지도에 책 표지를 장소마다 꽂고, 그 위로 뜬 바텀시트에 책별 여정을 세로 리스트로 쌓는다.
+//  한 책을 고르면 지도는 그 책의 장소들을 점선 경로로 잇고(포커스), 나머지 행은 흐려진다.
+//  시트는 손잡이를 끌어 2단(접힘/펼침)으로 여닫는다. 서재와 같은 웜 팔레트 톤. (→ DECISIONS #18)
 //
 
 import SwiftUI
@@ -19,6 +20,9 @@ struct JournalView: View {
     @State private var filter: JourneyFilter = .all
     @State private var selectedBookID: UUID?
     @State private var fallback: MapPoint?          // 좌표 없는 장소를 현재 위치로 대체
+    @State private var detent: SheetDetent = .collapsed
+
+    private enum SheetDetent { case collapsed, expanded }
 
     private var allJourneys: [BookJourney] { BookJourney.list(from: books) }
 
@@ -49,8 +53,23 @@ struct JournalView: View {
         let filtered = journeys.filter(filter.matches)
         return VStack(spacing: 0) {
             header
-            mapHero(filtered: filtered)
-            bottomPanel(all: journeys, filtered: filtered)
+            GeometryReader { geo in
+                let available = geo.size.height
+                let collapsed = available * 0.46
+                let expanded = available * 0.86
+                let sheetHeight = detent == .expanded ? expanded : collapsed
+                ZStack(alignment: .bottom) {
+                    JourneyMapView(journeys: filtered, selectedBookID: $selectedBookID, fallback: fallback)
+
+                    if selectedBookID != nil && detent == .collapsed {
+                        viewAllButton
+                            .padding(.bottom, collapsed + Theme.Spacing.sm)
+                            .transition(.opacity.combined(with: .move(edge: .bottom)))
+                    }
+
+                    sheet(all: journeys, filtered: filtered, height: sheetHeight)
+                }
+            }
         }
     }
 
@@ -60,20 +79,6 @@ struct JournalView: View {
             title: "독서여정",
             subtitle: JourneySummary(books: books).sentence
         )
-    }
-
-    private func mapHero(filtered: [BookJourney]) -> some View {
-        ZStack(alignment: .bottom) {
-            JourneyMapView(journeys: filtered, selectedBookID: $selectedBookID, fallback: fallback)
-                .clipShape(.rect(cornerRadius: Theme.Radius.lg, style: .continuous))
-                .padding(.horizontal, Theme.Spacing.md)
-            if selectedBookID != nil {
-                viewAllButton
-                    .padding(.bottom, Theme.Spacing.md)
-                    .transition(.opacity.combined(with: .move(edge: .bottom)))
-            }
-        }
-        .frame(maxHeight: .infinity)
     }
 
     private var emptyState: some View {
@@ -108,14 +113,58 @@ struct JournalView: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: 하단 패널(필터 + 카드 캐러셀)
+    // MARK: 바텀 시트 (손잡이 + 필터 + 세로 여정 리스트)
 
-    private func bottomPanel(all: [BookJourney], filtered: [BookJourney]) -> some View {
-        VStack(spacing: Theme.Spacing.sm) {
+    private func sheet(all: [BookJourney], filtered: [BookJourney], height: CGFloat) -> some View {
+        VStack(spacing: 0) {
+            grabber
             filterBar(all: all)
-            carousel(filtered: filtered)
+                .padding(.bottom, Theme.Spacing.sm)
+            ScrollView {
+                LazyVStack(spacing: 0) {
+                    ForEach(filtered) { journey in
+                        journeyRow(journey)
+                    }
+                }
+                .padding(.horizontal, Theme.Spacing.md)
+                .padding(.bottom, Theme.Spacing.lg)
+            }
         }
-        .padding(.top, Theme.Spacing.sm)
+        .frame(maxWidth: .infinity)
+        .frame(height: height, alignment: .top)
+        .background(
+            UnevenRoundedRectangle(topLeadingRadius: 20, topTrailingRadius: 20, style: .continuous)
+                .fill(PassagePalette.appBg)
+                .shadow(color: .black.opacity(0.14), radius: 16, x: 0, y: -3)
+        )
+    }
+
+    /// 시트 손잡이 — 위/아래로 끌어 2단 전환(펼침/접힘). 리스트 스크롤과 충돌하지 않도록 이 영역만 드래그.
+    private var grabber: some View {
+        Capsule()
+            .fill(PassagePalette.inkFaint)
+            .frame(width: 40, height: 5)
+            .frame(maxWidth: .infinity)
+            .padding(.top, Theme.Spacing.sm)
+            .padding(.bottom, Theme.Spacing.xs)
+            .contentShape(.rect)
+            .gesture(
+                DragGesture(minimumDistance: 8)
+                    .onEnded { value in
+                        withAnimation(reduceMotion ? nil : .snappy(duration: 0.28)) {
+                            if value.translation.height < -40 { detent = .expanded }
+                            else if value.translation.height > 40 { detent = .collapsed }
+                        }
+                    }
+            )
+            .accessibilityElement()
+            .accessibilityLabel(detent == .expanded ? "목록 접기" : "목록 펼치기")
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction {
+                withAnimation(reduceMotion ? nil : .snappy(duration: 0.28)) {
+                    detent = detent == .expanded ? .collapsed : .expanded
+                }
+            }
     }
 
     private func filterBar(all: [BookJourney]) -> some View {
@@ -139,50 +188,77 @@ struct JournalView: View {
             Text("\(option.label) \(count)")
                 .font(.system(size: 13, weight: selected ? .semibold : .regular))
                 .foregroundStyle(selected ? PassagePalette.appBg : PassagePalette.inkMuted)
-                .padding(.vertical, 6)
-                .padding(.horizontal, Theme.Spacing.sm)
-                .background(selected ? PassagePalette.ink : PassagePalette.cardBody, in: .capsule)
+                .padding(.vertical, 7)
+                .padding(.horizontal, Theme.Spacing.md)
+                .background(
+                    selected
+                        ? AnyShapeStyle(PassagePalette.ink)
+                        : AnyShapeStyle(.clear),
+                    in: .capsule
+                )
+                .overlay {
+                    if !selected {
+                        Capsule().stroke(PassagePalette.hairline, lineWidth: 1)
+                    }
+                }
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(selected ? [.isSelected, .isButton] : .isButton)
     }
 
-    private func carousel(filtered: [BookJourney]) -> some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(alignment: .top, spacing: Theme.Spacing.sm) {
-                ForEach(filtered) { journey in
-                    journeyCard(journey)
-                }
-            }
-            .padding(.horizontal, Theme.Spacing.md)
-            .padding(.bottom, Theme.Spacing.sm)
-        }
-    }
+    // MARK: 여정 행 (표지 + 제목·저자 · 총시간 · N곳의 여정)
 
-    private func journeyCard(_ journey: BookJourney) -> some View {
+    private func journeyRow(_ journey: BookJourney) -> some View {
         let isSelected = journey.id == selectedBookID
         let dimmed = selectedBookID != nil && !isSelected
-        return VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
-            BookCoverView(urlString: journey.coverURL)
-                .frame(width: 84, height: 112)
-                .overlay {
-                    RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous)
-                        .strokeBorder(PassagePalette.warmAccent, lineWidth: isSelected ? 3 : 0)
+        return VStack(spacing: 0) {
+            HStack(spacing: Theme.Spacing.md) {
+                BookCoverView(urlString: journey.coverURL)
+                    .frame(width: 52, height: 68)
+                    .clipShape(.rect(cornerRadius: 5, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 5, style: .continuous)
+                            .strokeBorder(PassagePalette.ink, lineWidth: isSelected ? 2.5 : 0)
+                    }
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(journey.title)
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(PassagePalette.ink)
+                        .lineLimit(1)
+                    if !journey.author.isEmpty {
+                        Text(journey.author)
+                            .font(.system(size: 12))
+                            .foregroundStyle(PassagePalette.inkMuted)
+                            .lineLimit(1)
+                    }
                 }
-            Text(journey.totalDurationText)
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(PassagePalette.ink)
-                .padding(.top, 2)
-            Text("\(journey.distinctPlaceCount)곳의 여정")
-                .font(.system(size: 12))
-                .foregroundStyle(PassagePalette.inkMuted)
+                Spacer(minLength: Theme.Spacing.sm)
+                VStack(alignment: .trailing, spacing: 3) {
+                    Text(journey.totalDurationText)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(PassagePalette.ink)
+                        .lineLimit(1)
+                    Text("\(journey.distinctPlaceCount)곳의 여정")
+                        .font(.system(size: 12))
+                        .foregroundStyle(PassagePalette.inkMuted)
+                        .lineLimit(1)
+                }
+            }
+            .padding(.vertical, Theme.Spacing.sm)
+            Rectangle()
+                .fill(PassagePalette.hairline)
+                .frame(height: 1)
         }
-        .frame(width: 84, alignment: .leading)
-        .opacity(dimmed ? 0.45 : 1)
+        .opacity(dimmed ? 0.4 : 1)
         .contentShape(.rect)
         .onTapGesture {
             withAnimation(reduceMotion ? nil : .snappy(duration: 0.25)) {
-                selectedBookID = isSelected ? nil : journey.id
+                if isSelected {
+                    selectedBookID = nil
+                } else {
+                    selectedBookID = journey.id
+                    detent = .collapsed        // 선택하면 시트를 접어 지도의 포커스 경로를 드러낸다
+                }
             }
         }
         .accessibilityElement(children: .combine)

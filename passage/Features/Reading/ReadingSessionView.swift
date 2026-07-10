@@ -2,9 +2,10 @@
 //  ReadingSessionView.swift
 //  passage
 //
-//  독서 세션 오버레이. 준비(ready) → 진행/일시정지(running/paused) → 종료(ended) 한 화면에서 흐른다.
-//  책 색으로 헤더를 물들이고, 원형 시계 타이머로 조용히 시간을 센다. (목업 Reading session)
-//  종료 후 "세션 저장하기"를 누르면 기존 "어디서 읽으셨나요?" 장소 화면으로 이어진다.
+//  독서 세션 오버레이. 준비(ready) → 진행/일시정지(running/paused) → 종료(ended)를 한 화면에서 흐른다.
+//  세 단계가 같은 "보딩 스텁" 레이아웃을 공유한다 — 상단에 책 표지 히어로, 그 아래 책 색(swatch.base)
+//  섹션에 제목·저자와 label·value 행(독서 시간·시작/끝 페이지·장소)을 얹고, 하단에 CTA를 둔다.
+//  종료 후 저장하면 기존 "어디서 읽으셨나요?" 장소 화면으로 이어진다. (Passage Home v2 목업)
 //
 
 import SwiftUI
@@ -27,26 +28,30 @@ struct ReadingSessionView: View {
 
     private enum Field { case start, end, place }
 
+    /// 표지 히어로 높이(상태바 밑까지 확장 포함).
+    private let heroHeight: CGFloat = 300
+
     var body: some View {
-        ZStack {
-            // 빈 배경을 누르면 키보드를 내린다. 이 화면은 NavigationStack 밖의
-            // fullScreenCover라 .toolbar(.keyboard) "완료" 버튼이 뜨지 않고,
-            // numberPad엔 return 키도 없어 배경 탭이 유일하게 확실한 dismiss 수단이다.
-            PassagePalette.appBg
+        ZStack(alignment: .topTrailing) {
+            // 화면 전체를 책 색으로. 빈 영역 탭 → 키보드 내림(numberPad엔 return 키가 없음).
+            swatch.base
                 .ignoresSafeArea()
                 .contentShape(.rect)
                 .onTapGesture { focusedField = nil }
 
             VStack(spacing: 0) {
-                header
-                if let phase = controller.phase {
-                    switch phase {
-                    case .ready:               readyStep
-                    case .running, .paused:    runningStep
-                    case .ended:               endedStep
-                    }
-                }
+                heroCover
+                    .frame(height: heroHeight)
+                    .frame(maxWidth: .infinity)
+                    .clipped()
+                coloredSection
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .ignoresSafeArea(edges: .top)   // 히어로만 상태바 밑까지, 하단 CTA는 안전영역 존중
+
+            closeButton
+                .padding(.trailing, Theme.Spacing.md)
+                .padding(.top, Theme.Spacing.xs)
         }
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
@@ -58,139 +63,134 @@ struct ReadingSessionView: View {
         .interactiveDismissDisabled()
     }
 
-    // MARK: 헤더 (책 색)
+    // MARK: 표지 히어로
 
-    private var header: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-            HStack {
-                Text("READING SESSION")
-                    .font(.system(size: 10, weight: .semibold))
-                    .tracking(1.5)
-                    .foregroundStyle(swatch.dim)
-                Spacer()
-                Button { controller.cancelReading() } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(swatch.ink)
-                        .frame(width: 28, height: 28)
-                        .background(Color.black.opacity(0.18), in: .circle)
-                }
-                .accessibilityLabel("닫기")
-            }
-            HStack(alignment: .firstTextBaseline, spacing: Theme.Spacing.sm) {
-                Text(currentBook?.title ?? "")
-                    .font(.system(size: 22, weight: .semibold))
-                    .foregroundStyle(swatch.ink)
-                    .lineLimit(2)
-                Spacer(minLength: Theme.Spacing.sm)
-                Text(todayText)
-                    .font(.system(size: 12))
-                    .foregroundStyle(swatch.dim)
-                    .fixedSize()
-            }
+    private var heroCover: some View {
+        BookCoverHero(urlString: currentBook?.coverRemoteURL, top: swatch.cover, bottom: swatch.base)
+    }
+
+    private var closeButton: some View {
+        Button { controller.cancelReading() } label: {
+            Image(systemName: "xmark")
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(.white)
+                .frame(width: 30, height: 30)
+                .background(Color.black.opacity(0.28), in: .circle)
+        }
+        .accessibilityLabel("닫기")
+    }
+
+    // MARK: 책 색 섹션 (단계별 본문)
+
+    @ViewBuilder
+    private var coloredSection: some View {
+        switch controller.phase {
+        case .ready:
+            stubLayout { readyRows } cta: { readyButton }
+        case .running, .paused:
+            stubLayout { runningRows } cta: { runningButtons }
+        case .ended:
+            endedSection
+        case .none:
+            EmptyView()
+        }
+    }
+
+    /// 준비·진행 공통 레이아웃 — 제목/저자 + 행들 + (스페이서) + 하단 CTA. 화면을 가득 채운다.
+    private func stubLayout<Rows: View, CTA: View>(
+        @ViewBuilder rows: () -> Rows,
+        @ViewBuilder cta: () -> CTA
+    ) -> some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
+            titleBlock
+            rows()
+            Spacer(minLength: Theme.Spacing.lg)
+            cta()
         }
         .padding(.horizontal, Theme.Spacing.lg)
-        .padding(.top, Theme.Spacing.md)
-        .padding(.bottom, Theme.Spacing.lg)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(swatch.base)
+        .padding(.top, Theme.Spacing.lg)
+        .padding(.bottom, Theme.Spacing.md)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    }
+
+    private var titleBlock: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
+            Text(currentBook?.title ?? "")
+                .font(.system(size: 26, weight: .bold))
+                .foregroundStyle(swatch.ink)
+                .lineLimit(2)
+            if let author = currentBook?.author, !author.isEmpty {
+                Text(author.uppercased())
+                    .font(.system(size: 12, weight: .semibold))
+                    .tracking(1.2)
+                    .foregroundStyle(swatch.dim)
+                    .lineLimit(1)
+            }
+        }
     }
 
     // MARK: ready
 
-    private var readyStep: some View {
+    private var readyRows: some View {
         VStack(spacing: Theme.Spacing.lg) {
-            // 지난 세션 기록이 있을 때만 시작 페이지를 확인·수정한다.
-            // 첫 독서는 어차피 1페이지부터 시작하므로 입력 없이 바로 시작한다.
-            if suggestedStartPage != nil {
-                VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                    fieldLabel("시작 페이지 (선택)")
-                    pageField($startPageText, placeholder: "지난 세션 이어서")
-                        .focused($focusedField, equals: .start)
-                    Text("지난 세션에서 읽은 마지막 페이지를 자동으로 가져왔어요")
-                        .font(.system(size: 11))
-                        .foregroundStyle(PassagePalette.inkFaint)
-                }
-            }
-            Spacer()
-            CircularTimerView(accumulated: 0, runningSince: nil, active: false, diameter: 280)
-            Spacer()
-            primaryButton("시작", systemImage: "play.fill") {
-                controller.confirmStart(startPage: Int(startPageText))
+            infoRow("독서 시간", value: TimeInterval(0).clockString)
+            if let suggested = suggestedStartPage {
+                infoRow("시작 페이지", value: "\(suggested)")
+            } else {
+                editableRow("시작 페이지", text: $startPageText, placeholder: "1", field: .start)
             }
         }
-        .padding(Theme.Spacing.lg)
+    }
+
+    private var readyButton: some View {
+        primaryPill("읽기 시작하기", systemImage: "play.fill") {
+            controller.confirmStart(startPage: Int(startPageText))
+        }
     }
 
     // MARK: running / paused
 
-    private var runningStep: some View {
+    private var runningRows: some View {
         VStack(spacing: Theme.Spacing.lg) {
-            HStack {
-                fieldLabel("시작 페이지")
-                Spacer()
-                Text(startPageDisplay)
-                    .font(.system(size: 15, weight: .medium).monospacedDigit())
-                    .foregroundStyle(PassagePalette.ink)
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+                infoRow("독서 시간", value: liveElapsed(context.date).clockString)
             }
-            .padding(.horizontal, Theme.Spacing.md)
-            .frame(height: 48)
-            .background(
-                PassagePalette.ink.opacity(0.05),
-                in: .rect(cornerRadius: Theme.Radius.md, style: .continuous)
-            )
-
-            Spacer()
-            CircularTimerView(
-                accumulated: controller.timerAccumulated,
-                runningSince: controller.timerRunningSince,
-                active: true,
-                diameter: 300
-            )
-            Spacer()
-
-            HStack(spacing: Theme.Spacing.sm) {
-                outlineButton(
-                    controller.isPaused ? "다시 시작" : "일시정지",
-                    systemImage: controller.isPaused ? "play.fill" : "pause.fill"
-                ) {
-                    if controller.isPaused { controller.resume() } else { controller.pause() }
-                }
-                dangerButton("종료", systemImage: "stop.fill") {
-                    controller.endReading()
-                }
-            }
+            infoRow("시작 페이지", value: startPageDisplay)
         }
-        .padding(Theme.Spacing.lg)
     }
 
-    // MARK: ended
+    private var runningButtons: some View {
+        HStack(spacing: Theme.Spacing.sm) {
+            outlinePill(
+                controller.isPaused ? "다시 시작" : "일시정지",
+                systemImage: controller.isPaused ? "play.fill" : "pause.fill"
+            ) {
+                if controller.isPaused { controller.resume() } else { controller.pause() }
+            }
+            filledPill("끝내기", systemImage: "stop.fill") {
+                controller.endReading()
+            }
+        }
+    }
 
-    private var endedStep: some View {
+    // MARK: ended (스크롤 — 장소·끝 페이지 입력이 키보드와 함께 넘칠 수 있음)
+
+    private var endedSection: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: Theme.Spacing.md) {
-                HStack(alignment: .firstTextBaseline, spacing: Theme.Spacing.sm) {
-                    Text("이번 세션")
-                        .font(.system(size: 13))
-                        .foregroundStyle(PassagePalette.inkMuted)
-                    Text((controller.endedSession?.duration ?? 0).clockString)
-                        .font(.system(size: 30, weight: .light).monospacedDigit())
-                        .foregroundStyle(PassagePalette.ink)
+            VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
+                titleBlock
+                VStack(spacing: Theme.Spacing.lg) {
+                    infoRow("독서 시간", value: (controller.endedSession?.duration ?? 0).clockString)
+                    editableRow("시작 페이지", text: $startPageText, placeholder: "p.", field: .start)
+                    editableRow("끝 페이지", text: $endPageText, placeholder: "p.", field: .end)
+                    placeSection
                 }
-
-                HStack(spacing: Theme.Spacing.sm) {
-                    pageColumn("시작 페이지", $startPageText)
-                        .focused($focusedField, equals: .start)
-                    pageColumn("끝 페이지 (선택)", $endPageText)
-                        .focused($focusedField, equals: .end)
-                }
-
-                placeSection
-
-                primaryButton("세션 저장하기") { saveEnded() }
+                primaryPill("저장하기") { saveEnded() }
                     .padding(.top, Theme.Spacing.xs)
             }
-            .padding(Theme.Spacing.lg)
+            .padding(.horizontal, Theme.Spacing.lg)
+            .padding(.top, Theme.Spacing.lg)
+            .padding(.bottom, Theme.Spacing.lg)
         }
         .scrollDismissesKeyboard(.interactively)
         .task(id: controller.endedSession?.id) {
@@ -199,107 +199,122 @@ struct ReadingSessionView: View {
         }
     }
 
-    /// 종료 단계 진입 시 세션의 시작 페이지를 필드에 반영한다(비어 있을 때만).
-    /// 첫 독서는 confirmStart에서 1페이지로 기록되므로, 저장 시 1이 유지된다.
-    private func prefillEndedStartPage() {
-        if startPageText.isEmpty, let start = controller.endedSession?.startPage {
-            startPageText = String(start)
-        }
-    }
-
     private var placeSection: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-            fieldLabel("장소 (선택)")
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            HStack {
+                Text("장소")
+                    .font(.system(size: 19, weight: .medium))
+                    .foregroundStyle(swatch.ink)
+                Spacer()
+                if locationAutofilled {
+                    Text("현재 위치")
+                        .font(.system(size: 13))
+                        .foregroundStyle(swatch.dim)
+                }
+            }
+            rowDivider
             PlaceMiniMap()
                 .contentShape(.rect)
                 .onTapGesture { openMapPlacePicker() }
                 .accessibilityElement()
                 .accessibilityLabel("지도·최근 장소에서 고르기")
                 .accessibilityAddTraits(.isButton)
-            TextField("어디서 읽었나요?", text: $placeText)
-                .focused($focusedField, equals: .place)
-                .autocorrectionDisabled()
-                .font(.system(size: 15))
-                .foregroundStyle(PassagePalette.ink)
-                .padding(.horizontal, Theme.Spacing.md)
-                .frame(height: 48)
-                .background(
-                    RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous)
-                        .fill(PassagePalette.field)
-                        .stroke(PassagePalette.hairline, lineWidth: 1.5)
-                )
-            Text(locationAutofilled
-                 ? "📍 위치 정보가 켜져 있어 현재 위치를 자동으로 가져왔어요"
-                 : "지도를 누르면 최근 장소·지도·사진으로 자세히 고를 수 있어요")
-                .font(.system(size: 11))
-                .foregroundStyle(PassagePalette.inkFaint)
+            HStack {
+                TextField("", text: $placeText, prompt: Text("장소 태그 추가하기").foregroundStyle(swatch.dim))
+                    .focused($focusedField, equals: .place)
+                    .autocorrectionDisabled()
+                    .font(.system(size: 16))
+                    .foregroundStyle(swatch.ink)
+                Spacer(minLength: Theme.Spacing.sm)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(swatch.dim)
+            }
+            .padding(.top, Theme.Spacing.xxs)
+            rowDivider
         }
     }
 
-    // MARK: 구성요소
+    // MARK: 행·버튼 구성요소
 
-    private func fieldLabel(_ text: String) -> some View {
-        Text(text)
-            .font(.system(size: 12, weight: .semibold))
-            .foregroundStyle(PassagePalette.inkMuted)
-    }
-
-    private func pageField(_ text: Binding<String>, placeholder: String) -> some View {
-        TextField(placeholder, text: text)
-            .keyboardType(.numberPad)
-            .font(.system(size: 15).monospacedDigit())
-            .foregroundStyle(PassagePalette.ink)
-            .padding(.horizontal, Theme.Spacing.md)
-            .frame(height: 48)
-            .background(
-                RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous)
-                    .fill(PassagePalette.field)
-                    .stroke(PassagePalette.hairline, lineWidth: 1.5)
-            )
-    }
-
-    private func pageColumn(_ label: String, _ text: Binding<String>) -> some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-            fieldLabel(label)
-            pageField(text, placeholder: "p.")
+    /// label(좌) ←→ value(우) + 하단 헤어라인.
+    private func infoRow(_ label: String, value: String) -> some View {
+        VStack(spacing: 6) {
+            HStack {
+                Text(label)
+                    .font(.system(size: 19, weight: .medium))
+                    .foregroundStyle(swatch.ink)
+                Spacer()
+                Text(value)
+                    .font(.system(size: 19, weight: .medium).monospacedDigit())
+                    .foregroundStyle(swatch.ink)
+            }
+            rowDivider
         }
-        .frame(maxWidth: .infinity)
     }
 
-    private func primaryButton(_ title: String, systemImage: String? = nil, action: @escaping () -> Void) -> some View {
+    /// label(좌) ←→ 입력(우) + 하단 헤어라인.
+    private func editableRow(_ label: String, text: Binding<String>, placeholder: String, field: Field) -> some View {
+        VStack(spacing: 6) {
+            HStack {
+                Text(label)
+                    .font(.system(size: 19, weight: .medium))
+                    .foregroundStyle(swatch.ink)
+                Spacer()
+                TextField("", text: text, prompt: Text(placeholder).foregroundStyle(swatch.dim))
+                    .keyboardType(.numberPad)
+                    .multilineTextAlignment(.trailing)
+                    .font(.system(size: 19, weight: .medium).monospacedDigit())
+                    .foregroundStyle(swatch.ink)
+                    .focused($focusedField, equals: field)
+                    .frame(maxWidth: 160)
+            }
+            rowDivider
+        }
+    }
+
+    private var rowDivider: some View {
+        Rectangle()
+            .fill(swatch.ink.opacity(0.32))
+            .frame(height: 1)
+    }
+
+    private func primaryPill(_ title: String, systemImage: String? = nil, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             pillLabel(title, systemImage: systemImage)
-                .foregroundStyle(PassagePalette.appBg)
-                .background(PassagePalette.ink, in: .capsule)
+                .foregroundStyle(swatch.base)
+                .background(swatch.ink, in: .capsule)
         }
         .buttonStyle(.plain)
     }
 
-    private func dangerButton(_ title: String, systemImage: String?, action: @escaping () -> Void) -> some View {
+    private func filledPill(_ title: String, systemImage: String?, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             pillLabel(title, systemImage: systemImage)
-                .foregroundStyle(.white)
-                .background(PassagePalette.danger, in: .capsule)
+                .foregroundStyle(swatch.base)
+                .background(swatch.ink, in: .capsule)
         }
         .buttonStyle(.plain)
     }
 
-    private func outlineButton(_ title: String, systemImage: String?, action: @escaping () -> Void) -> some View {
+    private func outlinePill(_ title: String, systemImage: String?, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             pillLabel(title, systemImage: systemImage)
-                .foregroundStyle(PassagePalette.ink)
-                .background(Capsule().stroke(PassagePalette.ink, lineWidth: 1.5))
+                .foregroundStyle(swatch.ink)
+                .background(Capsule().stroke(swatch.ink.opacity(0.5), lineWidth: 1.5))
         }
         .buttonStyle(.plain)
     }
 
     private func pillLabel(_ title: String, systemImage: String?) -> some View {
         HStack(spacing: Theme.Spacing.xs) {
-            if let systemImage { Image(systemName: systemImage).font(.system(size: 13, weight: .semibold)) }
+            if let systemImage {
+                Image(systemName: systemImage).font(.system(size: 13, weight: .semibold))
+            }
             Text(title)
         }
         .font(.system(size: 16, weight: .semibold))
-        .frame(maxWidth: .infinity, minHeight: 54)
+        .frame(maxWidth: .infinity, minHeight: 52)
     }
 
     // MARK: 파생값
@@ -308,8 +323,13 @@ struct ReadingSessionView: View {
         controller.pendingBook ?? controller.activeSession?.book ?? controller.endedSession?.book
     }
 
+    /// 서재 카드와 같은 색을 쓴다 — 표지 대표색이 추출돼 있으면 그 은은한 톤, 없으면 book.id 해시 폴백.
     private var swatch: PassagePalette.Swatch {
-        currentBook.map { PassagePalette.swatch(for: $0) } ?? PassagePalette.swatches[0]
+        guard let book = currentBook else { return PassagePalette.swatches[0] }
+        if let hex = book.coverColorHex, let value = UInt32(hex, radix: 16) {
+            return PassagePalette.coverSwatch(hex: value)
+        }
+        return PassagePalette.swatch(for: book)
     }
 
     private var suggestedStartPage: Int? {
@@ -317,27 +337,28 @@ struct ReadingSessionView: View {
     }
 
     private var startPageDisplay: String {
-        controller.activeSession?.startPage.map { "p. \($0)" } ?? "—"
+        controller.activeSession?.startPage.map { "\($0)" } ?? "—"
     }
 
-    private var todayText: String {
-        let cal = Calendar.current
-        let now = Date()
-        let month = cal.component(.month, from: now)
-        let day = cal.component(.day, from: now)
-        let weekday = cal.component(.weekday, from: now)
-        let symbols = ["일", "월", "화", "수", "목", "금", "토"]
-        return "\(month)월 \(day)일 (\(symbols[(weekday - 1 + 7) % 7]))"
+    /// 진행 중 표시 경과(초). 일시정지면 runningSince가 nil이라 누적값에서 멈춘다.
+    private func liveElapsed(_ now: Date) -> TimeInterval {
+        controller.timerAccumulated + (controller.timerRunningSince.map { max(0, now.timeIntervalSince($0)) } ?? 0)
     }
 
     private func prefillStartPage() {
         guard !didPrefillStartPage else { return }
         didPrefillStartPage = true
-        // ready면 지난 세션의 마지막 페이지, 이미 진행/종료 단계로 들어왔다면 그 세션의 시작 페이지.
         if let page = suggestedStartPage
             ?? controller.activeSession?.startPage
             ?? controller.endedSession?.startPage {
             startPageText = String(page)
+        }
+    }
+
+    /// 종료 단계 진입 시 세션의 시작 페이지를 필드에 반영한다(비어 있을 때만).
+    private func prefillEndedStartPage() {
+        if startPageText.isEmpty, let start = controller.endedSession?.startPage {
+            startPageText = String(start)
         }
     }
 
@@ -380,6 +401,42 @@ struct ReadingSessionView: View {
     }
 }
 
+/// 표지 히어로 — 풀블리드로 표지를 채우고(가운데 크롭) 로드 전/실패/표지 없음이면
+/// cover→base 그라데이션으로 아래 색 섹션에 자연스럽게 이어지게 한다.
+/// BookCoverView는 항상 작은 곡률로 클립하므로, 상단 풀블리드 히어로는 전용으로 그린다.
+private struct BookCoverHero: View {
+    let urlString: String?
+    let top: Color
+    let bottom: Color
+
+    private var fallback: some View {
+        LinearGradient(colors: [top, bottom], startPoint: .top, endPoint: .bottom)
+    }
+
+    var body: some View {
+        GeometryReader { geo in
+            Group {
+                if let urlString, let url = URL(string: urlString) {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image.resizable().scaledToFill()
+                        case .empty:
+                            fallback.overlay { ProgressView().tint(.white) }
+                        default:
+                            fallback
+                        }
+                    }
+                } else {
+                    fallback
+                }
+            }
+            .frame(width: geo.size.width, height: geo.size.height)
+            .clipped()
+        }
+    }
+}
+
 /// 종료 단계의 장식용 미니맵(실제 지도 아님 — 탭하면 리치 장소 화면으로). 목업 재현.
 private struct PlaceMiniMap: View {
     var body: some View {
@@ -411,12 +468,8 @@ private struct PlaceMiniMap: View {
                     .shadow(color: .black.opacity(0.3), radius: 3, x: 0, y: 2)
             }
         }
-        .frame(height: 96)
+        .frame(height: 128)
         .clipShape(.rect(cornerRadius: Theme.Radius.md, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: Theme.Radius.md, style: .continuous)
-                .stroke(PassagePalette.hairline, lineWidth: 1.5)
-        )
         .overlay(alignment: .topTrailing) {
             Image(systemName: "map")
                 .font(.system(size: 11, weight: .semibold))
