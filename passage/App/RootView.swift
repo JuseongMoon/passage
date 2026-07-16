@@ -13,19 +13,21 @@ import SwiftData
 struct RootView: View {
     @Environment(ReadingSessionController.self) private var sessionController
     @AppStorage(AppStorageKey.appearanceMode) private var appearanceMode = AppearanceMode.system
+    @State private var router = AppRouter()
 
     var body: some View {
-        TabView {
-            Tab("서재", systemImage: "books.vertical") {
+        TabView(selection: $router.selectedTab) {
+            Tab("서재", systemImage: "books.vertical", value: RootTab.library) {
                 LibraryView()
             }
-            Tab("독서여정", systemImage: "ticket") {
+            Tab("독서여정", systemImage: "ticket", value: RootTab.journal) {
                 JournalView()
             }
-            Tab("설정", systemImage: "gearshape") {
+            Tab("설정", systemImage: "gearshape", value: RootTab.settings) {
                 SettingsView()
             }
         }
+        .environment(router)
         .fullScreenCover(isPresented: Binding(
             get: { sessionController.isFlowActive },
             set: { _ in }

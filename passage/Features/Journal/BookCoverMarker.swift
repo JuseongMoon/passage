@@ -3,7 +3,7 @@
 //  passage
 //
 //  지도 마커용 책 표지 이미지 렌더러. 원격 표지(coverRemoteURL)를 받아 둥근 카드 UIImage로 합성한다.
-//  표지가 없거나 로드 실패 시 책별 팔레트 색(swatch.cover)으로 폴백. book.id로 캐시.
+//  표지가 없거나 로드 실패 시 책별 팔레트 색(swatch.base)으로 폴백. book.id로 캐시.
 //  마커는 UIImage가 필요한데 BookCoverView는 AsyncImage뿐이라 이 동기/비동기 경로를 따로 둔다.
 //
 //  MainActor 격리: 드로잉·색 해석을 전부 메인에서 수행(UIColor dynamicProvider off-main 트랩 회피).
@@ -69,7 +69,7 @@ final class BookCoverMarkerRenderer {
             if let cover {
                 cover.draw(in: aspectFillRect(imageSize: cover.size, in: cardRect))
             } else {
-                UIColor(swatch.cover).setFill()
+                UIColor(swatch.base).setFill()   // 가로 갤러리 카드와 같은 색(swatch.base)으로 통일
                 cg.fill(cardRect)
             }
             cg.restoreGState()

@@ -46,7 +46,13 @@ struct BookJourney: Identifiable, Hashable, Sendable {
         self.title = book.title
         self.author = book.author
         self.coverURL = book.coverRemoteURL
-        self.swatch = PassagePalette.swatch(for: book)
+        // 서재 카드와 같은 색: 표지 대표색이 추출돼 있으면 그 색(은은한 톤), 없으면 book.id 해시 폴백.
+        // (지도 마커·가로 갤러리가 서재 카드와 같은 색을 쓰도록 통일.)
+        if let hex = book.coverColorHex, let value = UInt32(hex, radix: 16) {
+            self.swatch = PassagePalette.coverSwatch(hex: value)
+        } else {
+            self.swatch = PassagePalette.swatch(for: book)
+        }
         self.isFinished = book.isFinished
 
         // 완료 세션(진행 중 제외).

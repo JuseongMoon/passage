@@ -19,6 +19,7 @@ struct ReadingSessionView: View {
     @State private var startPageText = ""
     @State private var endPageText = ""
     @State private var placeText = ""
+    @State private var noteText = ""
     @State private var placeCoord: CLLocationCoordinate2D?
     @State private var placeAddress: String?
     @State private var locationAutofilled = false
@@ -26,7 +27,7 @@ struct ReadingSessionView: View {
     @State private var didPrefillStartPage = false
     @FocusState private var focusedField: Field?
 
-    private enum Field { case start, end, place }
+    private enum Field { case start, end, place, note }
 
     /// 표지 히어로 높이(상태바 밑까지 확장 포함).
     private let heroHeight: CGFloat = 300
@@ -183,6 +184,7 @@ struct ReadingSessionView: View {
                     infoRow("독서 시간", value: (controller.endedSession?.duration ?? 0).clockString)
                     editableRow("시작 페이지", text: $startPageText, placeholder: "p.", field: .start)
                     editableRow("끝 페이지", text: $endPageText, placeholder: "p.", field: .end)
+                    noteSection
                     placeSection
                 }
                 primaryPill("저장하기") { saveEnded() }
@@ -196,6 +198,26 @@ struct ReadingSessionView: View {
         .task(id: controller.endedSession?.id) {
             prefillEndedStartPage()
             await autofillLocationIfPossible()
+        }
+    }
+
+    /// 세션 직후 감상 한 줄(Memory over Productivity — 기록의 깊이). 선택 입력, 비면 저장 안 함.
+    private var noteSection: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            Text("생각")
+                .font(.system(size: 19, weight: .medium))
+                .foregroundStyle(swatch.ink)
+            TextField(
+                "",
+                text: $noteText,
+                prompt: Text("오늘 읽으며 남은 생각 (선택)").foregroundStyle(swatch.dim),
+                axis: .vertical
+            )
+            .focused($focusedField, equals: .note)
+            .font(.system(size: 16))
+            .foregroundStyle(swatch.ink)
+            .lineLimit(1...4)
+            rowDivider
         }
     }
 
@@ -366,6 +388,7 @@ struct ReadingSessionView: View {
         controller.finishEndedInline(
             startPage: Int(startPageText),
             endPage: Int(endPageText),
+            note: noteText,
             placeName: placeText,
             latitude: placeCoord?.latitude,
             longitude: placeCoord?.longitude,
@@ -375,7 +398,7 @@ struct ReadingSessionView: View {
 
     /// 지도를 눌러 기존 리치 장소 화면(최근 장소·지도 탭·POI 검색·사진)으로 넘긴다.
     private func openMapPlacePicker() {
-        controller.finishEnded(startPage: Int(startPageText), endPage: Int(endPageText))
+        controller.finishEnded(startPage: Int(startPageText), endPage: Int(endPageText), note: noteText)
     }
 
     /// 위치 권한이 이미 있으면 현재 위치를 reverse-geocode해 장소를 자동 채운다(선택).

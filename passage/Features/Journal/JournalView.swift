@@ -15,6 +15,7 @@ import CoreLocation
 struct JournalView: View {
     @Query(sort: \Book.dateAdded, order: .reverse) private var books: [Book]
     @Environment(AppDependencies.self) private var dependencies
+    @Environment(AppRouter.self) private var router
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var filter: JourneyFilter = .all
@@ -43,6 +44,13 @@ struct JournalView: View {
                     fallback = MapPoint(latitude: coord.latitude, longitude: coord.longitude)
                 }
             }
+            .navigationDestination(for: ReadingSession.self) { session in
+                MemoryDetailView(session: session)
+            }
+            .onChange(of: router.journeyFocusRequest) { _, request in
+                applyFocusRequest(request)
+            }
+            .onAppear { applyFocusRequest(router.journeyFocusRequest) }
         }
     }
 
@@ -59,13 +67,14 @@ struct JournalView: View {
                 let expanded = available * 0.86
                 let sheetHeight = detent == .expanded ? expanded : collapsed
                 ZStack(alignment: .bottom) {
-                    JourneyMapView(journeys: filtered, selectedBookID: $selectedBookID, fallback: fallback)
-
-                    if selectedBookID != nil && detent == .collapsed {
-                        viewAllButton
-                            .padding(.bottom, collapsed + Theme.Spacing.sm)
-                            .transition(.opacity.combined(with: .move(edge: .bottom)))
-                    }
+                    // 시트가 지도 하단을 덮으므로, 접힘 높이를 지도에 넘겨 카메라가
+                    // 가려지지 않는 상단 영역을 기준으로 마커·경로를 중앙에 맞추게 한다.
+                    JourneyMapView(
+                        journeys: filtered,
+                        selectedBookID: $selectedBookID,
+                        fallback: fallback,
+                        bottomInset: collapsed
+                    )
 
                     sheet(all: journeys, filtered: filtered, height: sheetHeight)
                 }
@@ -94,23 +103,21 @@ struct JournalView: View {
         }
     }
 
-    // MARK: 지도 위 "전체 여정보기" (포커스 → 개요 복귀)
+    // MARK: 포커스 제어
 
-    private var viewAllButton: some View {
-        Button {
-            withAnimation(reduceMotion ? nil : .snappy(duration: 0.25)) {
-                selectedBookID = nil
-            }
-        } label: {
-            Text("전체 여정보기")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(PassagePalette.appBg)
-                .padding(.vertical, 10)
-                .padding(.horizontal, Theme.Spacing.lg)
-                .background(PassagePalette.ink, in: .capsule)
-                .shadow(color: .black.opacity(0.18), radius: 6, y: 2)
+    /// 서재 등에서 넘어온 포커스 요청을 소비 — 그 책을 선택하고 시트를 펼친다(책 상세).
+    private func applyFocusRequest(_ request: UUID?) {
+        guard let id = request else { return }
+        selectedBookID = id
+        detent = .collapsed   // 지도의 포커스 경로를 드러내고, 시트는 접힌 채 상단(뒤로·히어로)부터
+        router.journeyFocusRequest = nil    // 1회성 요청 소비
+    }
+
+    /// 포커스 해제(전체 개요로 복귀).
+    private func deselectBook() {
+        withAnimation(reduceMotion ? nil : .snappy(duration: 0.25)) {
+            selectedBookID = nil
         }
-        .buttonStyle(.plain)
     }
 
     // MARK: 바텀 시트 (손잡이 + 필터 + 세로 여정 리스트)
@@ -118,16 +125,21 @@ struct JournalView: View {
     private func sheet(all: [BookJourney], filtered: [BookJourney], height: CGFloat) -> some View {
         VStack(spacing: 0) {
             grabber
-            filterBar(all: all)
-                .padding(.bottom, Theme.Spacing.sm)
-            ScrollView {
-                LazyVStack(spacing: 0) {
-                    ForEach(filtered) { journey in
-                        journeyRow(journey)
+            if let id = selectedBookID, let book = books.first(where: { $0.id == id }) {
+                // 책 포커스 — 여정 기록·완독·인용구(구 BookDetailView를 여기 통합)
+                BookJourneyDetailSheet(book: book, onBack: { deselectBook() })
+            } else {
+                filterBar(all: all)
+                    .padding(.bottom, Theme.Spacing.sm)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHStack(alignment: .top, spacing: Theme.Spacing.md) {
+                        ForEach(filtered) { journey in
+                            journeyCard(journey)
+                        }
                     }
+                    .padding(.horizontal, Theme.Spacing.md)
+                    .padding(.bottom, Theme.Spacing.md)
                 }
-                .padding(.horizontal, Theme.Spacing.md)
-                .padding(.bottom, Theme.Spacing.lg)
             }
         }
         .frame(maxWidth: .infinity)
@@ -206,64 +218,65 @@ struct JournalView: View {
         .accessibilityAddTraits(selected ? [.isSelected, .isButton] : .isButton)
     }
 
-    // MARK: 여정 행 (표지 + 제목·저자 · 총시간 · N곳의 여정)
+    // MARK: 여정 카드 (가로 갤러리 — 표지 + 표지색 밑줄 악센트 · 제목 · 총시간)
 
-    private func journeyRow(_ journey: BookJourney) -> some View {
+    private func journeyCard(_ journey: BookJourney) -> some View {
         let isSelected = journey.id == selectedBookID
         let dimmed = selectedBookID != nil && !isSelected
-        return VStack(spacing: 0) {
-            HStack(spacing: Theme.Spacing.md) {
-                BookCoverView(urlString: journey.coverURL)
-                    .frame(width: 52, height: 68)
-                    .clipShape(.rect(cornerRadius: 5, style: .continuous))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 5, style: .continuous)
-                            .strokeBorder(PassagePalette.ink, lineWidth: isSelected ? 2.5 : 0)
-                    }
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(journey.title)
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundStyle(PassagePalette.ink)
-                        .lineLimit(1)
-                    if !journey.author.isEmpty {
-                        Text(journey.author)
-                            .font(.system(size: 12))
-                            .foregroundStyle(PassagePalette.inkMuted)
-                            .lineLimit(1)
-                    }
-                }
-                Spacer(minLength: Theme.Spacing.sm)
-                VStack(alignment: .trailing, spacing: 3) {
-                    Text(journey.totalDurationText)
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(PassagePalette.ink)
-                        .lineLimit(1)
-                    Text("\(journey.distinctPlaceCount)곳의 여정")
-                        .font(.system(size: 12))
-                        .foregroundStyle(PassagePalette.inkMuted)
-                        .lineLimit(1)
-                }
+        return Button {
+            selectJourney(journey)
+        } label: {
+            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                cover(journey, isSelected: isSelected)
+                Text(journey.title)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(PassagePalette.ink)
+                    .lineLimit(1)
+                Text(journey.totalDurationText)
+                    .font(.system(size: 11))
+                    .foregroundStyle(PassagePalette.inkMuted)
+                    .lineLimit(1)
             }
-            .padding(.vertical, Theme.Spacing.sm)
-            Rectangle()
-                .fill(PassagePalette.hairline)
-                .frame(height: 1)
+            .frame(width: 108)
+            .opacity(dimmed ? 0.45 : 1)
         }
-        .opacity(dimmed ? 0.4 : 1)
-        .contentShape(.rect)
-        .onTapGesture {
-            withAnimation(reduceMotion ? nil : .snappy(duration: 0.25)) {
-                if isSelected {
-                    selectedBookID = nil
-                } else {
-                    selectedBookID = journey.id
-                    detent = .collapsed        // 선택하면 시트를 접어 지도의 포커스 경로를 드러낸다
-                }
-            }
-        }
-        .accessibilityElement(children: .combine)
+        .buttonStyle(.plain)
         .accessibilityLabel("\(journey.title), \(journey.totalDurationText), \(journey.distinctPlaceCount)곳의 여정")
         .accessibilityAddTraits(isSelected ? [.isSelected, .isButton] : .isButton)
+    }
+
+    /// 표지(있으면 이미지, 없으면 표지색) + 하단 밑줄 악센트 + 선택 시 잉크 테두리.
+    private func cover(_ journey: BookJourney, isSelected: Bool) -> some View {
+        Group {
+            if let url = journey.coverURL, !url.isEmpty {
+                BookCoverView(urlString: url)
+            } else {
+                journey.swatch.base
+            }
+        }
+        .frame(width: 108, height: 144)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(.black.opacity(0.15))   // 카드색과 무관하게 조화되는 밑줄 악센트
+                .frame(height: 6)
+        }
+        .clipShape(.rect(cornerRadius: Theme.Radius.sm, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous)
+                .strokeBorder(PassagePalette.ink, lineWidth: isSelected ? 2.5 : 0)
+        }
+    }
+
+    /// 갤러리 카드 탭 — 포커스 토글(선택 시 시트를 펼쳐 책 상세를 드러낸다).
+    private func selectJourney(_ journey: BookJourney) {
+        withAnimation(reduceMotion ? nil : .snappy(duration: 0.25)) {
+            if journey.id == selectedBookID {
+                selectedBookID = nil
+            } else {
+                selectedBookID = journey.id
+                detent = .collapsed
+            }
+        }
     }
 }
 

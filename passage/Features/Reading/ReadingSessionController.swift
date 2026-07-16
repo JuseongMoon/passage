@@ -121,10 +121,11 @@ final class ReadingSessionController {
     }
 
     /// ended 단계 저장: endPage 확정 후 "어디서 읽으셨나요?"(기존 장소 화면)로 넘긴다.
-    func finishEnded(startPage: Int?, endPage: Int?) {
+    func finishEnded(startPage: Int?, endPage: Int?, note: String? = nil) {
         guard let session = endedSession else { return }
         session.startPage = startPage
         session.endPage = endPage
+        session.note = Self.trimmedNote(note)
         try? modelContext.save()
         endedSession = nil
         sessionAwaitingPlace = session
@@ -135,6 +136,7 @@ final class ReadingSessionController {
     func finishEndedInline(
         startPage: Int?,
         endPage: Int?,
+        note: String? = nil,
         placeName: String?,
         latitude: Double? = nil,
         longitude: Double? = nil,
@@ -143,6 +145,7 @@ final class ReadingSessionController {
         guard let session = endedSession else { return }
         session.startPage = startPage
         session.endPage = endPage
+        session.note = Self.trimmedNote(note)
         let name = (placeName ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         if !name.isEmpty {
             let place = Place(name: name, latitude: latitude, longitude: longitude, address: address)
@@ -151,6 +154,12 @@ final class ReadingSessionController {
         }
         try? modelContext.save()
         endedSession = nil
+    }
+
+    /// 공백만 있거나 빈 감상은 nil로 저장(빈 문자열 방지).
+    private static func trimmedNote(_ note: String?) -> String? {
+        let trimmed = (note ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 
     /// 종료된 세션에 장소를 연결하고 질문을 닫는다.

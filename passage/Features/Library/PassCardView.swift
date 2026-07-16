@@ -106,9 +106,6 @@ struct PassCardView: View {
 
     private var menuButton: some View {
         Menu {
-            Button { onViewJourney() } label: {
-                Label("전체 여정보기", systemImage: "book.closed")
-            }
             Button(role: .destructive) { onDelete() } label: {
                 Label("책 삭제하기", systemImage: "trash")
             }
@@ -285,14 +282,25 @@ struct PassCardView: View {
     }
 
     private var cta: some View {
-        Button(action: onStartSession) {
-            Text("여정 시작하기")
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(PassagePalette.appBg)
-                .frame(maxWidth: .infinity, minHeight: 44)
-                .background(PassagePalette.ink, in: .capsule)
+        HStack(spacing: Theme.Spacing.sm) {
+            Button(action: onViewJourney) {
+                Text("여정보기")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(PassagePalette.ink)
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .background(PassagePalette.appBg, in: .capsule)
+                    .overlay { Capsule().stroke(PassagePalette.hairline, lineWidth: 1) }
+            }
+            .buttonStyle(.plain)
+            Button(action: onStartSession) {
+                Text("책 읽기")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(PassagePalette.appBg)
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .background(PassagePalette.ink, in: .capsule)
+            }
+            .buttonStyle(.plain)
         }
-        .buttonStyle(.plain)
         .padding(.horizontal, Theme.Spacing.md)
     }
 }

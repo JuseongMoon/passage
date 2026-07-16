@@ -15,18 +15,19 @@ struct LibraryView: View {
     @Environment(AppDependencies.self) private var dependencies
     @Environment(ReadingSessionController.self) private var sessionController
     @Environment(CoverColorFiller.self) private var coverColorFiller
+    @Environment(AppRouter.self) private var router
 
     @Query(sort: \Book.dateAdded, order: .reverse) private var books: [Book]
 
     @State private var showingAddBook = false
     @State private var front = 0                 // 펼친 패스(0 = 가장 최근)
+    @State private var libraryFilter: LibraryFilter = .all
     @State private var bookPendingDelete: Book?
     @State private var bookPendingPageCount: Book?
     @State private var pageCountText = ""
-    @State private var path = NavigationPath()
 
     var body: some View {
-        NavigationStack(path: $path) {
+        NavigationStack {
             ZStack {
                 PassagePalette.appBg.ignoresSafeArea()
 
@@ -37,9 +38,6 @@ struct LibraryView: View {
                 }
             }
             .toolbar(.hidden, for: .navigationBar)   // 커스텀 헤더 사용
-            .navigationDestination(for: Book.self) { book in
-                BookDetailView(book: book)
-            }
             .sheet(isPresented: $showingAddBook) {
                 BookSearchView()
             }
@@ -62,6 +60,9 @@ struct LibraryView: View {
         .onChange(of: books.count) { _, _ in
             front = min(front, max(0, books.count - 1))
         }
+        .onChange(of: libraryFilter) { _, _ in
+            front = 0   // 필터가 바뀌면 목록이 달라지므로 맨 앞으로
+        }
         .task {
             coverColorFiller.backfillMissing()   // 표지색 미추출 책을 백그라운드로 채움(멱등)
         }
@@ -73,7 +74,7 @@ struct LibraryView: View {
         VStack(spacing: 0) {
             headerView
             PassStackView(
-                passes: PassPresentation.list(from: books),
+                passes: PassPresentation.list(from: filteredBooks),
                 front: $front,
                 onAddBook: { showingAddBook = true },
                 onStartSession: { startSession(at: $0) },
@@ -90,7 +91,37 @@ struct LibraryView: View {
             eyebrow: "Passage",
             title: libraryTitle,
             subtitle: "현재 \(books.count)권의 책을 읽고 있어요"
-        )
+        ) {
+            filterMenu
+        }
+    }
+
+    private var filterMenu: some View {
+        Menu {
+            ForEach(LibraryFilter.allCases) { option in
+                Button {
+                    libraryFilter = option
+                } label: {
+                    if libraryFilter == option {
+                        Label(option.label, systemImage: "checkmark")
+                    } else {
+                        Text(option.label)
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Text(libraryFilter.label)
+                    .font(.system(size: 14, weight: .medium))
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 11, weight: .semibold))
+            }
+            .foregroundStyle(PassagePalette.ink)
+            .padding(.vertical, 6)
+            .padding(.horizontal, Theme.Spacing.sm)
+            .background(PassagePalette.cardBody, in: .capsule)
+        }
+        .accessibilityLabel("책 필터, 현재 \(libraryFilter.label)")
     }
 
     private var emptyState: some View {
@@ -119,19 +150,24 @@ struct LibraryView: View {
         return "나의 서재"
     }
 
+    /// 현재 필터가 적용된 책 목록 — 카드 스택·콜백 인덱스의 기준(전체 books가 아니라 이 배열).
+    private var filteredBooks: [Book] {
+        books.filter(libraryFilter.matches)
+    }
+
     private func startSession(at index: Int) {
-        guard books.indices.contains(index) else { return }
-        sessionController.beginReading(book: books[index])
+        guard filteredBooks.indices.contains(index) else { return }
+        sessionController.beginReading(book: filteredBooks[index])
     }
 
     private func viewJourney(at index: Int) {
-        guard books.indices.contains(index) else { return }
-        path.append(books[index])
+        guard filteredBooks.indices.contains(index) else { return }
+        router.openJourney(bookID: filteredBooks[index].id)   // 독서여정 탭으로 건너가 그 책을 포커스
     }
 
     private func askDelete(at index: Int) {
-        guard books.indices.contains(index) else { return }
-        bookPendingDelete = books[index]
+        guard filteredBooks.indices.contains(index) else { return }
+        bookPendingDelete = filteredBooks[index]
     }
 
     private func performDelete(_ book: Book) {
@@ -141,8 +177,8 @@ struct LibraryView: View {
     }
 
     private func promptPageCount(at index: Int) {
-        guard books.indices.contains(index) else { return }
-        let book = books[index]
+        guard filteredBooks.indices.contains(index) else { return }
+        let book = filteredBooks[index]
         pageCountText = book.totalPageCount.map(String.init) ?? ""
         bookPendingPageCount = book
     }
@@ -159,6 +195,29 @@ struct LibraryView: View {
             get: { bookPendingPageCount != nil },
             set: { if !$0 { bookPendingPageCount = nil } }
         )
+    }
+}
+
+/// 서재 필터(모든 책/읽는 중/완독) — 완독 여부(book.isFinished) 기준.
+enum LibraryFilter: String, CaseIterable, Identifiable {
+    case all, reading, finished
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .all: "모든 책"
+        case .reading: "읽는 중"
+        case .finished: "완독"
+        }
+    }
+
+    func matches(_ book: Book) -> Bool {
+        switch self {
+        case .all: true
+        case .reading: !book.isFinished
+        case .finished: book.isFinished
+        }
     }
 }
 
