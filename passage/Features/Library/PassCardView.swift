@@ -254,6 +254,10 @@ struct PassCardView: View {
                 .lineLimit(1)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        // 장소명은 minimumScaleFactor로 축소될 수 있는데, 그러면 카드 offset/height 애니메이션과
+        // 레이아웃이 분리돼 "카드를 안 따라가는" 현상이 생긴다. geometryGroup으로 geometry를
+        // 하나의 단위로 묶어 부모 애니메이션을 원자적으로 따라가게 한다.
+        .geometryGroup()
     }
 
     // 진행률 % 는 티켓의 총 독서시간 옆에 표시한다. 여기서는 전체 페이지 수를 모를 때만
