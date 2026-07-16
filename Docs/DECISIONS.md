@@ -178,4 +178,17 @@
 - **상태**: ✅ 빌드·전체 65 테스트 그린. **사용자 시뮬레이터(iPhone 17 Pro Max, 기존 실데이터 스토어 유지)에서 크래시 없이 실행·자동 마이그레이션·표지색 렌더 확인**(1Q84→그레이라벤더, 소년이온다→앰버, 헤일메리→퍼플). fresh 설치도 정상.
 
 ---
-*새 결정은 아래에 #23부터 이어서 기록한다.*
+### #23 — 프로토타입 v2 반영(독서여정 통합·서재 필터·가로 갤러리·감상 메모) ✅
+- **배경**: 최신 기획이 Claude 아티팩트 "Bundled Page" HTML(인터랙티브 Vue 프로토타입)로 전달됨. 앞으로도 동일 형식. 디코딩·분석 절차를 `scripts/decode-prototype.py`로 자동화 — 리소스맵(gzip+base64)에서 라이브러리/로더 JS·폰트 분리, 렌더링 HTML·화면 텍스트 추출, 로컬 http 서버 안내. **전체 화면·네비게이션은 로컬 서버로 브라우저 확인**(file:// 차단, 정적 HTML엔 초기 화면만 — 나머지는 클릭 전환).
+- **결정(사용자 확정)**: 책 상세를 독서여정 탭에 **완전 통합**, 독서여정 전체 목록을 **가로 표지 갤러리**로.
+- **구현**:
+  - 독서여정 통합: `AppRouter`(탭 선택+포커스 요청) 신설, `RootView` `TabView(selection:)`. 서재 "여정보기"→`router.openJourney`→독서여정 탭 + 책 포커스. 포커스 시트 = `BookJourneyDetailSheet`(히어로·완독 토글·여정 기록[세션별→`MemoryDetailView`]·인용구) — 구 `BookDetailView` 흡수. 포커스 진입 detent=`.collapsed`로 지도 여정 경로 노출.
+  - 서재: 헤더 `LibraryFilter` Menu(모든 책/읽는 중/완독, `filteredBooks` 기준), `PassCardView` CTA `[여정보기][책 읽기]` 2버튼. "+ 책 추가" 알약은 `PassStackView` 레이아웃 회귀 위험으로 현행 유지.
+  - 색 통일: `BookJourney.swatch`·`BookCoverMarker` 폴백을 서재와 동일(coverColorHex 우선, `swatch.base`) — 같은 책이 서재·지도·갤러리에서 같은 색.
+  - 데드코드 제거: `BookDetailView`·`CircularTimerView`·`ReflectionView`. `ReflectionOrganizer`·`MemoryOrganizer`는 테스트 커버라 유지(사용자 결정).
+- **기획 보완(A-1)**: 프로토타입 세션 저장엔 감상이 없어 Memory over Productivity와 어긋남 → 세션 종료(ended) 화면에 "생각" 메모(`session.note`) 입력 추가. `finishEnded`·`finishEndedInline`에 note 파라미터. 기존 `MemoryDetailView` "생각" 섹션에서 조회/편집.
+- **미반영(향후 후보)**: 필터 결과 0건 빈 상태 안내, 장소 없는 세션의 여정 표현. (세팅 화면은 프로토타입 미구현이나 현행 앱에 이미 존재.)
+- **상태**: ✅ 빌드·전체 유닛 테스트 통과, iOS 26.5 시뮬 E2E(서재 필터·CTA·독서여정 가로 갤러리·책 포커스 지도 경로·감상 메모) 스크린샷 검증. `JourneyMapView`·`project.pbxproj`(버전만) 등 세션 무관 변경은 커밋 제외.
+
+---
+*새 결정은 아래에 #24부터 이어서 기록한다.*
