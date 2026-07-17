@@ -37,6 +37,8 @@ enum PassagePalette {
 
     /// 따뜻한 오렌지 액센트(위치 핀·원형 타이머 틱 등).
     static let warmAccent = Color(light: 0xEB7127, dark: 0xEB7127)
+    /// 책 색 위에 얹는 CTA 알약(독서 세션) — 책색·라이트/다크와 무관하게 어두운 알약 + 흰 텍스트로 통일.
+    static let ctaInk = Color(hex: 0x26241F)
     /// 파괴적 동작(삭제).
     static let danger = Color(light: 0xC73B2D, dark: 0xE0574A)
 

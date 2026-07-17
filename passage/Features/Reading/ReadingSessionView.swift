@@ -20,6 +20,9 @@ struct ReadingSessionView: View {
     @State private var endPageText = ""
     @State private var placeText = ""
     @State private var noteText = ""
+    @State private var addressText = ""                       // 장소 = 현재 위치 주소(수정·검색 가능)
+    @State private var searchResults: [PlaceSearchResult] = []
+    @State private var isSearching = false
     @State private var placeCoord: CLLocationCoordinate2D?
     @State private var placeAddress: String?
     @State private var locationAutofilled = false
@@ -27,7 +30,7 @@ struct ReadingSessionView: View {
     @State private var didPrefillStartPage = false
     @FocusState private var focusedField: Field?
 
-    private enum Field { case start, end, place, note }
+    private enum Field { case start, end, place, note, address }
 
     /// 표지 히어로 높이(상태바 밑까지 확장 포함).
     private let heroHeight: CGFloat = 300
@@ -221,20 +224,32 @@ struct ReadingSessionView: View {
         }
     }
 
+    /// 장소 = 현재 위치 주소가 기본. 주소를 고쳐 검색하면 드롭다운에서 새 위치를 고를 수 있다.
     private var placeSection: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-            HStack {
+            HStack(spacing: Theme.Spacing.xs) {
                 Text("장소")
                     .font(.system(size: 19, weight: .medium))
                     .foregroundStyle(swatch.ink)
-                Spacer()
-                if locationAutofilled {
-                    Text("현재 위치")
-                        .font(.system(size: 13))
-                        .foregroundStyle(swatch.dim)
-                }
+                Spacer(minLength: Theme.Spacing.xs)
+                TextField(
+                    "",
+                    text: $addressText,
+                    prompt: Text(locationAutofilled ? "현재 위치" : "주소 입력").foregroundStyle(swatch.dim)
+                )
+                .focused($focusedField, equals: .address)
+                .autocorrectionDisabled()
+                .multilineTextAlignment(.trailing)
+                .font(.system(size: 16))
+                .foregroundStyle(swatch.ink)
+                .submitLabel(.search)
+                .onSubmit { searchPlaces() }
+                searchButton
             }
             rowDivider
+            if !searchResults.isEmpty {
+                searchDropdown
+            }
             PlaceMiniMap()
                 .contentShape(.rect)
                 .onTapGesture { openMapPlacePicker() }
@@ -242,19 +257,69 @@ struct ReadingSessionView: View {
                 .accessibilityLabel("지도·최근 장소에서 고르기")
                 .accessibilityAddTraits(.isButton)
             HStack {
-                TextField("", text: $placeText, prompt: Text("장소 태그 추가하기").foregroundStyle(swatch.dim))
-                    .focused($focusedField, equals: .place)
-                    .autocorrectionDisabled()
+                Text("장소 태그")
                     .font(.system(size: 16))
                     .foregroundStyle(swatch.ink)
                 Spacer(minLength: Theme.Spacing.sm)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(swatch.dim)
+                TextField("", text: $placeText, prompt: Text("추가하기").foregroundStyle(swatch.dim))
+                    .focused($focusedField, equals: .place)
+                    .autocorrectionDisabled()
+                    .multilineTextAlignment(.trailing)
+                    .font(.system(size: 16))
+                    .foregroundStyle(swatch.ink)
             }
             .padding(.top, Theme.Spacing.xxs)
             rowDivider
         }
+    }
+
+    private var searchButton: some View {
+        Button { searchPlaces() } label: {
+            Group {
+                if isSearching {
+                    ProgressView().controlSize(.small).tint(swatch.ink)
+                } else {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(swatch.ink)
+                }
+            }
+            .frame(width: 30, height: 30)
+            .background(swatch.ink.opacity(0.14), in: .circle)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("이 주소로 장소 검색")
+    }
+
+    /// 검색 결과 드롭다운 — 고르면 주소·좌표가 그 장소로 바뀐다.
+    private var searchDropdown: some View {
+        VStack(spacing: 0) {
+            ForEach(searchResults) { result in
+                Button { selectPlace(result) } label: {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(result.name)
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundStyle(PassagePalette.ink)
+                            .lineLimit(1)
+                        if let address = result.roadAddress ?? result.address, !address.isEmpty {
+                            Text(address)
+                                .font(.system(size: 12))
+                                .foregroundStyle(PassagePalette.inkMuted)
+                                .lineLimit(1)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, Theme.Spacing.sm)
+                    .padding(.vertical, Theme.Spacing.xs)
+                    .contentShape(.rect)
+                }
+                .buttonStyle(.plain)
+                if result.id != searchResults.last?.id {
+                    Divider().overlay(PassagePalette.hairline)
+                }
+            }
+        }
+        .background(PassagePalette.field, in: .rect(cornerRadius: Theme.Radius.md, style: .continuous))
     }
 
     // MARK: 행·버튼 구성요소
@@ -304,8 +369,8 @@ struct ReadingSessionView: View {
     private func primaryPill(_ title: String, systemImage: String? = nil, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             pillLabel(title, systemImage: systemImage)
-                .foregroundStyle(swatch.base)
-                .background(swatch.ink, in: .capsule)
+                .foregroundStyle(.white)
+                .background(PassagePalette.ctaInk, in: .capsule)
         }
         .buttonStyle(.plain)
     }
@@ -313,8 +378,8 @@ struct ReadingSessionView: View {
     private func filledPill(_ title: String, systemImage: String?, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             pillLabel(title, systemImage: systemImage)
-                .foregroundStyle(swatch.base)
-                .background(swatch.ink, in: .capsule)
+                .foregroundStyle(.white)
+                .background(PassagePalette.ctaInk, in: .capsule)
         }
         .buttonStyle(.plain)
     }
@@ -389,11 +454,47 @@ struct ReadingSessionView: View {
             startPage: Int(startPageText),
             endPage: Int(endPageText),
             note: noteText,
-            placeName: placeText,
+            placeName: resolvedPlaceName,
             latitude: placeCoord?.latitude,
             longitude: placeCoord?.longitude,
-            address: placeAddress
+            address: resolvedAddress
         )
+    }
+
+    /// 저장할 장소 이름 — 태그 우선, 없으면 주소(둘 다 비면 장소 없이 저장된다).
+    private var resolvedPlaceName: String {
+        let tag = placeText.trimmingCharacters(in: .whitespacesAndNewlines)
+        return tag.isEmpty ? addressText.trimmingCharacters(in: .whitespacesAndNewlines) : tag
+    }
+
+    private var resolvedAddress: String? {
+        let address = addressText.trimmingCharacters(in: .whitespacesAndNewlines)
+        return address.isEmpty ? placeAddress : address
+    }
+
+    /// 주소 필드 내용으로 장소를 검색해 드롭다운에 띄운다.
+    private func searchPlaces() {
+        let query = addressText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty, !isSearching else { return }
+        focusedField = nil
+        Task {
+            isSearching = true
+            let results = (try? await dependencies.placeSearch.search(query: query)) ?? []
+            isSearching = false
+            searchResults = results
+        }
+    }
+
+    /// 드롭다운에서 고른 장소로 주소·좌표를 바꾼다.
+    private func selectPlace(_ result: PlaceSearchResult) {
+        addressText = result.roadAddress ?? result.address ?? result.name
+        placeAddress = addressText
+        placeCoord = CLLocationCoordinate2D(latitude: result.latitude, longitude: result.longitude)
+        if placeText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            placeText = result.name          // 태그가 비어 있으면 고른 장소명을 제안
+        }
+        searchResults = []
+        locationAutofilled = false
     }
 
     /// 지도를 눌러 기존 리치 장소 화면(최근 장소·지도 탭·POI 검색·사진)으로 넘긴다.
@@ -414,8 +515,8 @@ struct ReadingSessionView: View {
                 latitude: coord.latitude, longitude: coord.longitude
             )
             placeAddress = address
-            if placeText.isEmpty {
-                placeText = address
+            if addressText.isEmpty {
+                addressText = address        // 장소 기본값 = 현재 위치 주소
                 locationAutofilled = true
             }
         } catch {

@@ -76,7 +76,6 @@ struct LibraryView: View {
             PassStackView(
                 passes: PassPresentation.list(from: filteredBooks),
                 front: $front,
-                onAddBook: { showingAddBook = true },
                 onStartSession: { startSession(at: $0) },
                 onViewJourney: { viewJourney(at: $0) },
                 onDelete: { askDelete(at: $0) },
@@ -92,8 +91,29 @@ struct LibraryView: View {
             title: libraryTitle,
             subtitle: "현재 \(books.count)권의 책을 읽고 있어요"
         ) {
-            filterMenu
+            HStack(spacing: Theme.Spacing.xs) {
+                filterMenu
+                addBookButton
+            }
         }
+    }
+
+    /// 헤더 우측 "+ 책 추가"(목업) — 스택 위 알약 대신 헤더로 올렸다.
+    private var addBookButton: some View {
+        Button { showingAddBook = true } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "plus")
+                    .font(.system(size: 12, weight: .semibold))
+                Text("책 추가")
+                    .font(.system(size: 14, weight: .medium))
+            }
+            .foregroundStyle(PassagePalette.appBg)
+            .padding(.vertical, 7)
+            .padding(.horizontal, Theme.Spacing.sm)
+            .background(PassagePalette.ink, in: .capsule)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("새 책 추가하기")
     }
 
     private var filterMenu: some View {

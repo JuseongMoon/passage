@@ -27,7 +27,6 @@ struct PassStackView: View {
     let passes: [PassPresentation]
     @Binding var front: Int
 
-    let onAddBook: () -> Void
     let onStartSession: (Int) -> Void
     let onViewJourney: (Int) -> Void
     let onDelete: (Int) -> Void
@@ -52,40 +51,17 @@ struct PassStackView: View {
                         onDelete: { onDelete(index) },
                         onSetPageCount: { onSetPageCount(index) }
                     )
-                    .padding(.horizontal, PassLayout.hPadding)
                     .offset(y: topOffset(for: index, front: front, height: height))
                     // zIndex는 원래 보간이 안 돼(순간 전환) 카드가 겹칠 때 draw order가 툭 바뀐다.
                     // depth를 Animatable로 프레임마다 보간 → 카드가 교차하는 시점에 순서가 바뀜.
                     .modifier(DepthEffect(depth: zIndex(for: index, front: front)))
                 }
-
-                addPill
-                    .zIndex(1000)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .contentShape(.rect)
             .gesture(stackDrag)
             .clipped()
         }
-    }
-
-    // MARK: 추가 알약
-
-    private var addPill: some View {
-        Button(action: onAddBook) {
-            HStack(spacing: 6) {
-                Image(systemName: "plus")
-                    .font(.system(size: 14, weight: .semibold))
-                Text("새 책 추가하기")
-                    .font(.system(size: 14, weight: .medium))
-            }
-            .foregroundStyle(PassagePalette.ink)
-            .padding(.vertical, Theme.Spacing.xs)
-            .padding(.horizontal, Theme.Spacing.md)
-        }
-        .buttonStyle(.plain)
-        .padding(.top, Theme.Spacing.xs)
-        .frame(maxWidth: .infinity, alignment: .top)
     }
 
     // MARK: 배치 계산
