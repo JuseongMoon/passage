@@ -163,7 +163,8 @@ struct PassCardView: View {
                     Text(pass.title)
                         .font(.system(size: 18))
                         .foregroundStyle(pass.swatch.ink)
-                        .lineLimit(2)
+                        .lineLimit(3)
+                        .fixedSize(horizontal: false, vertical: true)
                     if !pass.author.isEmpty {
                         Text(pass.author)
                             .font(.system(size: 12))
@@ -189,7 +190,9 @@ struct PassCardView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             cover
         }
-        .frame(height: 100)   // 표지 높이에 고정 → 총시간이 표지 하단에 정렬, Spacer가 카드 채움과 경쟁 방지
+        // 표지 높이가 하한 → 짧은 제목은 총시간이 표지 하단에 정렬. 제목이 길면 좌측 열이 아래로 늘어나
+        // 여러 줄을 그대로 보여준다(하단 뉴트럴 여백 Spacer가 늘어난 높이를 흡수).
+        .frame(minHeight: 100)
         .padding(Theme.Spacing.md)
         // 배경 없음 — 컬러(swatch.base)는 카드 전체 배경 한 장으로 깔려 헤더에서 끊김 없이 이어진다.
     }

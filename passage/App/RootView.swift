@@ -9,9 +9,11 @@
 
 import SwiftUI
 import SwiftData
+import CoreLocation
 
 struct RootView: View {
     @Environment(ReadingSessionController.self) private var sessionController
+    @Environment(AppDependencies.self) private var dependencies
     @AppStorage(AppStorageKey.appearanceMode) private var appearanceMode = AppearanceMode.system
     @State private var router = AppRouter()
 
@@ -39,6 +41,12 @@ struct RootView: View {
             }
         }
         .preferredColorScheme(appearanceMode.colorScheme)   // 설정의 화면 모드(기본=시스템)
+        .task {
+            // 앱 시작 시 위치 권한을 한 번 요청(장소 자동채움 보조). 미결정일 때만 프롬프트.
+            if dependencies.location.authorizationStatus == .notDetermined {
+                dependencies.location.requestWhenInUseAuthorization()
+            }
+        }
     }
 }
 

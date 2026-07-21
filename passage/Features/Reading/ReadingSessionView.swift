@@ -250,7 +250,7 @@ struct ReadingSessionView: View {
             if !searchResults.isEmpty {
                 searchDropdown
             }
-            PlaceMiniMap()
+            PlaceMiniMap(coordinate: placeCoord)
                 .contentShape(.rect)
                 .onTapGesture { openMapPlacePicker() }
                 .accessibilityElement()
@@ -561,54 +561,29 @@ private struct BookCoverHero: View {
     }
 }
 
-/// 종료 단계의 장식용 미니맵(실제 지도 아님 — 탭하면 리치 장소 화면으로). 목업 재현.
+/// 종료 단계의 미니맵 — 실제 네이버 지도를 미리보기로 보여준다(탭하면 리치 장소 화면으로).
+/// 프리뷰 용도라 지도 자체 제스처는 끄고(allowsHitTesting=false) 바깥 탭 제스처가 먹도록 한다.
 private struct PlaceMiniMap: View {
-    var body: some View {
-        ZStack {
-            PassagePalette.cardBody
+    let coordinate: CLLocationCoordinate2D?
 
-            GeometryReader { geo in
-                let w = geo.size.width, h = geo.size.height
-                Path { p in
-                    p.move(to: CGPoint(x: 0, y: h * 0.34)); p.addLine(to: CGPoint(x: w, y: h * 0.34))
-                    p.move(to: CGPoint(x: 0, y: h * 0.70)); p.addLine(to: CGPoint(x: w, y: h * 0.70))
-                    p.move(to: CGPoint(x: w * 0.22, y: 0)); p.addLine(to: CGPoint(x: w * 0.22, y: h))
-                    p.move(to: CGPoint(x: w * 0.64, y: 0)); p.addLine(to: CGPoint(x: w * 0.64, y: h))
-                }
-                .stroke(PassagePalette.ink.opacity(0.08), lineWidth: 1)
-
-                block(w * 0.10, h * 0.20, 34, 16)
-                block(w * 0.34, h * 0.52, 40, 20)
-                block(w * 0.74, h * 0.24, 36, 22)
-                block(w * 0.80, h * 0.70, 30, 16)
-            }
-
-            // 중심 핀(글로우 + 점)
-            ZStack {
-                Circle().fill(PassagePalette.warmAccent.opacity(0.18)).frame(width: 34, height: 34)
-                Circle().fill(PassagePalette.warmAccent)
-                    .frame(width: 14, height: 14)
-                    .overlay(Circle().strokeBorder(.white, lineWidth: 2.5))
-                    .shadow(color: .black.opacity(0.3), radius: 3, x: 0, y: 2)
-            }
-        }
-        .frame(height: 128)
-        .clipShape(.rect(cornerRadius: Theme.Radius.md, style: .continuous))
-        .overlay(alignment: .topTrailing) {
-            Image(systemName: "map")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(PassagePalette.inkMuted)
-                .padding(6)
-                .background(PassagePalette.field.opacity(0.9), in: .circle)
-                .padding(8)
-        }
+    private var point: MapPoint? {
+        coordinate.map { MapPoint(latitude: $0.latitude, longitude: $0.longitude) }
     }
 
-    private func block(_ x: CGFloat, _ y: CGFloat, _ w: CGFloat, _ h: CGFloat) -> some View {
-        RoundedRectangle(cornerRadius: 3)
-            .fill(PassagePalette.ink.opacity(0.05))
-            .frame(width: w, height: h)
-            .position(x: x + w / 2, y: y + h / 2)
+    var body: some View {
+        NaverMapView(selectedPoint: .constant(point))
+            .allowsHitTesting(false)
+            .frame(height: 192)
+            .frame(maxWidth: .infinity)
+            .clipShape(.rect(cornerRadius: Theme.Radius.md, style: .continuous))
+            .overlay(alignment: .topTrailing) {
+                Image(systemName: "map")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(PassagePalette.inkMuted)
+                    .padding(6)
+                    .background(PassagePalette.field.opacity(0.9), in: .circle)
+                    .padding(8)
+            }
     }
 }
 
