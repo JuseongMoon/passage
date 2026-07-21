@@ -11,6 +11,7 @@
 import SwiftUI
 import SwiftData
 import CoreLocation
+import UIKit
 
 struct ReadingSessionView: View {
     @Environment(ReadingSessionController.self) private var controller
@@ -525,13 +526,26 @@ struct ReadingSessionView: View {
     }
 }
 
-/// 표지 히어로 — 풀블리드로 표지를 채우고(가운데 크롭) 로드 전/실패/표지 없음이면
-/// cover→base 그라데이션으로 아래 색 섹션에 자연스럽게 이어지게 한다.
+/// 표지 히어로 — 풀블리드로 표지를 폭에 맞춰 채우고, 넘치는 세로 영역을 위→아래로 1분 주기로
+/// 천천히 왕복(순환)하며 보여준다(정지된 가운데 크롭 대신 살아 움직이는 히어로). 로드 전/실패/
+/// 표지 없음이면 cover→base 그라데이션으로 아래 색 섹션에 자연스럽게 이어지게 한다.
+/// 종횡비(오버플로)를 알아야 팬 범위가 정확하므로 AsyncImage 대신 UIImage로 직접 로드한다.
 /// BookCoverView는 항상 작은 곡률로 클립하므로, 상단 풀블리드 히어로는 전용으로 그린다.
 private struct BookCoverHero: View {
     let urlString: String?
     let top: Color
     let bottom: Color
+
+    @State private var image: UIImage?
+    @State private var didFail = false
+
+    // 위→아래 한 방향 60초: 앞 panRamp초 가속 · 가운데 panCruise초 등속 · 끝 panRamp초 감속.
+    // 양 끝(맨 위·맨 아래)에서 속도가 0이라 방향 전환이 튀지 않고 베지어처럼 부드럽게 뒤집힌다.
+    private static let panRamp: Double = 5                     // 앞/뒤 이징 구간(초)
+    private static let panCruise: Double = 50                  // 가운데 등속 구간(초)
+    private static let panSpeed = 1.0 / (panRamp + panCruise)  // 등속 속도(pan/초)
+    private static let panV1 = 0.5 * panSpeed * panRamp        // 가속이 끝나는 지점(= 감속 시작의 대칭점)
+    private static let panV2 = 1.0 - panV1
 
     private var fallback: some View {
         LinearGradient(colors: [top, bottom], startPoint: .top, endPoint: .bottom)
@@ -539,24 +553,67 @@ private struct BookCoverHero: View {
 
     var body: some View {
         GeometryReader { geo in
-            Group {
-                if let urlString, let url = URL(string: urlString) {
-                    AsyncImage(url: url) { phase in
-                        switch phase {
-                        case .success(let image):
-                            image.resizable().scaledToFill()
-                        case .empty:
-                            fallback.overlay { ProgressView().tint(.white) }
-                        default:
-                            fallback
-                        }
-                    }
-                } else {
+            ZStack {
+                if let image {
+                    panningImage(image, in: geo.size)
+                } else if didFail || urlString == nil {
                     fallback
+                } else {
+                    fallback.overlay { ProgressView().tint(.white) }
                 }
             }
             .frame(width: geo.size.width, height: geo.size.height)
             .clipped()
+        }
+        .task(id: urlString) { await load() }
+    }
+
+    /// 표지를 폭에 맞춰 채우고(세로로 넘침), 넘치는 만큼만 위→아래로 팬한다. 가로는 가운데 정렬.
+    /// 양 끝은 감속/가속(속도 0)해 방향 전환이 부드럽고, 가운데는 등속. (KeyframeAnimator 순환)
+    private func panningImage(_ uiImage: UIImage, in size: CGSize) -> some View {
+        let imgW = max(uiImage.size.width, 1)
+        let imgH = max(uiImage.size.height, 1)
+        let scale = max(size.width / imgW, size.height / imgH)   // fill(짧은 변 기준)
+        let renderedW = imgW * scale
+        let renderedH = imgH * scale
+        let overflowY = max(0, renderedH - size.height)
+        let insetX = (renderedW - size.width) / 2
+        let base = Image(uiImage: uiImage)
+            .resizable()
+            .frame(width: renderedW, height: renderedH)
+        return Group {
+            if overflowY > 0 {
+                base.keyframeAnimator(initialValue: 0.0) { view, pan in
+                    view.offset(x: -insetX, y: -overflowY * CGFloat(pan))   // 가로 가운데 + 세로 팬
+                } keyframes: { _ in
+                    KeyframeTrack(\.self) {
+                        // 위→아래: 가속(끝속도 = 등속) → 등속 → 감속(끝속도 0, 맨 아래에서 정지)
+                        CubicKeyframe(Self.panV1, duration: Self.panRamp, startVelocity: 0, endVelocity: Self.panSpeed)
+                        LinearKeyframe(Self.panV2, duration: Self.panCruise)
+                        CubicKeyframe(1.0, duration: Self.panRamp, startVelocity: Self.panSpeed, endVelocity: 0)
+                        // 아래→위: 대칭. 시작·끝 속도 0이라 양 끝 방향 전환이 매끄럽고 루프 이음새도 연속.
+                        CubicKeyframe(Self.panV2, duration: Self.panRamp, startVelocity: 0, endVelocity: -Self.panSpeed)
+                        LinearKeyframe(Self.panV1, duration: Self.panCruise)
+                        CubicKeyframe(0.0, duration: Self.panRamp, startVelocity: -Self.panSpeed, endVelocity: 0)
+                    }
+                }
+            } else {
+                base.offset(x: -insetX)                          // 넘침 없음 → 가로 가운데 고정
+            }
+        }
+        .frame(width: size.width, height: size.height, alignment: .topLeading)
+        .clipped()
+    }
+
+    private func load() async {
+        didFail = false
+        image = nil
+        guard let urlString, let url = URL(string: urlString) else { return }
+        do {
+            let (data, _) = try await URLSession.shared.data(from: url)
+            if let ui = UIImage(data: data) { image = ui } else { didFail = true }
+        } catch {
+            didFail = true
         }
     }
 }

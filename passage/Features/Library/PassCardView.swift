@@ -190,9 +190,11 @@ struct PassCardView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             cover
         }
-        // 표지 높이가 하한 → 짧은 제목은 총시간이 표지 하단에 정렬. 제목이 길면 좌측 열이 아래로 늘어나
-        // 여러 줄을 그대로 보여준다(하단 뉴트럴 여백 Spacer가 늘어난 높이를 흡수).
+        // 표지 높이(100)가 하한 → 짧은 제목은 총시간이 표지 하단에 정렬. 제목이 길면 그만큼만 늘어난다.
+        // fixedSize로 콘텐츠 높이에 딱 맞춰(hug) 색상 영역이 남는 세로 공간까지 삼켜 과하게 커지는 것을
+        // 막는다 — 안 그러면 티켓이 세로를 탐욕적으로 채워 가운데 여백이 생기고 아래 CTA가 밀려난다.
         .frame(minHeight: 100)
+        .fixedSize(horizontal: false, vertical: true)
         .padding(Theme.Spacing.md)
         // 배경 없음 — 컬러(swatch.base)는 카드 전체 배경 한 장으로 깔려 헤더에서 끊김 없이 이어진다.
     }
