@@ -17,6 +17,8 @@ struct JourneyMapView: UIViewRepresentable {
     let journeys: [BookJourney]          // 필터 적용된 목록
     @Binding var selectedBookID: UUID?
     let fallback: MapPoint?              // 좌표 없는 장소 대체(현재 위치)
+    /// 하단 리스트 시트가 덮는 높이(pt). 카메라가 가려지지 않는 상단 영역 기준으로 콘텐츠를 맞추도록 준다.
+    var bottomInset: CGFloat = 0
 
     func makeUIView(context: Context) -> NMFNaverMapView {
         let view = NMFNaverMapView()
@@ -48,12 +50,17 @@ struct JourneyMapView: UIViewRepresentable {
         func render(on mapView: NMFMapView) {
             let journeys = parent.journeys
             let selected = parent.selectedBookID
+            let inset = parent.bottomInset
             // 좌표 없는 장소는 fallback(현재 위치)로 그려지므로 fallback이 도착하면 다시 그린다.
             let fallbackKey = parent.fallback.map { "\($0.latitude),\($0.longitude)" } ?? "none"
-            let key = (selected?.uuidString ?? "all") + "|" + fallbackKey + "|"
+            let key = (selected?.uuidString ?? "all") + "|" + fallbackKey + "|inset:\(Int(inset))|"
                 + journeys.map(\.id.uuidString).joined(separator: ",")
             guard key != lastKey else { return }
             lastKey = key
+
+            // 하단 리스트 시트가 덮는 높이만큼 콘텐츠 패딩을 줘, 카메라가 상단 가시영역 기준으로
+            // 마커·경로를 중앙에 맞추게 한다(타일은 그대로 풀블리드, 카메라 타겟만 보정).
+            mapView.contentInset = UIEdgeInsets(top: 0, left: 0, bottom: inset, right: 0)
 
             clear()
             if let selected, let journey = journeys.first(where: { $0.id == selected }) {
