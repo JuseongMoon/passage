@@ -39,7 +39,7 @@ struct ReadingSessionTests {
         controller.beginReading(book: book)
         controller.confirmStart(startPage: nil)
         controller.endReading()
-        controller.finishEnded(startPage: nil, endPage: 42)
+        controller.finishEndedInline(startPage: nil, endPage: 42, placeName: nil)
 
         #expect(!controller.isReading)
         let all = try container.mainContext.fetch(FetchDescriptor<ReadingSession>())

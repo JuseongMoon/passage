@@ -76,10 +76,9 @@ struct PassCardView: View {
     private var header: some View {
         HStack(spacing: Theme.Spacing.sm) {
             if isFront {
-                // 펼친 카드는 큰 티켓에 제목이 나오므로 스트립엔 메뉴만 둔다(목업).
+                // 펼친 카드의 메뉴(...)는 표지 우측 상단으로 옮겼다 — 헤더 스트립은 컬러만 남긴다.
                 // 컬러(swatch.base)는 여기서 티켓 블록까지 그대로 이어진다.
                 Spacer(minLength: 0)
-                menuButton
             } else {
                 Text(pass.title)
                     .font(.system(size: 16))
@@ -163,7 +162,8 @@ struct PassCardView: View {
                     Text(pass.title)
                         .font(.system(size: 18))
                         .foregroundStyle(pass.swatch.ink)
-                        .lineLimit(3)
+                        .lineLimit(2)
+                        .truncationMode(.tail)
                         .fixedSize(horizontal: false, vertical: true)
                     if !pass.author.isEmpty {
                         Text(pass.author)
@@ -190,10 +190,10 @@ struct PassCardView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             cover
         }
-        // 표지 높이(100)가 하한 → 짧은 제목은 총시간이 표지 하단에 정렬. 제목이 길면 그만큼만 늘어난다.
+        // 표지 높이(128)가 하한 → 짧은 제목은 총시간이 표지 하단에 정렬. 제목이 길면 그만큼만 늘어난다.
         // fixedSize로 콘텐츠 높이에 딱 맞춰(hug) 색상 영역이 남는 세로 공간까지 삼켜 과하게 커지는 것을
         // 막는다 — 안 그러면 티켓이 세로를 탐욕적으로 채워 가운데 여백이 생기고 아래 CTA가 밀려난다.
-        .frame(minHeight: 100)
+        .frame(minHeight: 128)
         .fixedSize(horizontal: false, vertical: true)
         .padding(Theme.Spacing.md)
         // 배경 없음 — 컬러(swatch.base)는 카드 전체 배경 한 장으로 깔려 헤더에서 끊김 없이 이어진다.
@@ -207,8 +207,13 @@ struct PassCardView: View {
                 Rectangle().fill(pass.swatch.cover)
             }
         }
-        .frame(width: 76, height: 100)
+        // 상단·우측을 고정한 채 좌·하로 키워 표지 하단이 더 아래로 닿게 한다(좌측 하단 방향 확장).
+        .frame(width: 96, height: 128)
         .clipShape(.rect(cornerRadius: 2, style: .continuous))
+        // 펼친 카드의 메뉴(...)는 표지 우측 상단에 오버레이한다.
+        .overlay(alignment: .topTrailing) {
+            if isFront { menuButton.padding(6) }
+        }
     }
 
     private var journeys: some View {

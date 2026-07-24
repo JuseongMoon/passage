@@ -73,7 +73,7 @@ struct BookJourneyDetailSheet: View {
                 .frame(width: 64, height: 96)
                 .clipShape(.rect(cornerRadius: 5, style: .continuous))
             VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
-                Text(book.title)
+                Text(book.displayTitle)
                     .font(.title3)
                     .fontDesign(.serif)
                     .fontWeight(.semibold)

@@ -120,7 +120,7 @@ struct ReadingSessionView: View {
 
     private var titleBlock: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
-            Text(currentBook?.title ?? "")
+            Text(currentBook?.displayTitle ?? "")
                 .font(.system(size: 26, weight: .bold))
                 .foregroundStyle(swatch.ink)
                 .lineLimit(2)
@@ -252,11 +252,8 @@ struct ReadingSessionView: View {
                 searchDropdown
             }
             PlaceMiniMap(coordinate: placeCoord)
-                .contentShape(.rect)
-                .onTapGesture { openMapPlacePicker() }
                 .accessibilityElement()
-                .accessibilityLabel("지도·최근 장소에서 고르기")
-                .accessibilityAddTraits(.isButton)
+                .accessibilityLabel("선택한 장소 지도")
             HStack {
                 Text("장소 태그")
                     .font(.system(size: 16))
@@ -496,11 +493,6 @@ struct ReadingSessionView: View {
         }
         searchResults = []
         locationAutofilled = false
-    }
-
-    /// 지도를 눌러 기존 리치 장소 화면(최근 장소·지도 탭·POI 검색·사진)으로 넘긴다.
-    private func openMapPlacePicker() {
-        controller.finishEnded(startPage: Int(startPageText), endPage: Int(endPageText), note: noteText)
     }
 
     /// 위치 권한이 이미 있으면 현재 위치를 reverse-geocode해 장소를 자동 채운다(선택).

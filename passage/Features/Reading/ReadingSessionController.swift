@@ -25,9 +25,6 @@ final class ReadingSessionController {
     /// 종료 후 페이지 입력 대기(ended) 세션. endDate는 이미 확정됐다.
     private(set) var endedSession: ReadingSession?
 
-    /// "어디서 읽으셨나요?" 장소 질문 대기 세션(기존 장소 화면).
-    private(set) var sessionAwaitingPlace: ReadingSession?
-
     /// 일시정지 여부.
     private(set) var isPaused = false
 
@@ -44,8 +41,8 @@ final class ReadingSessionController {
         return nil
     }
 
-    /// 세션 흐름(오버레이) 활성 여부 — 장소 질문 단계 포함.
-    var isFlowActive: Bool { phase != nil || sessionAwaitingPlace != nil }
+    /// 세션 흐름(오버레이) 활성 여부.
+    var isFlowActive: Bool { phase != nil }
 
     /// 진행 중(running/paused) 세션 존재 여부.
     var isReading: Bool { activeSession != nil }
@@ -120,17 +117,6 @@ final class ReadingSessionController {
         endedSession = session
     }
 
-    /// ended 단계 저장: endPage 확정 후 "어디서 읽으셨나요?"(기존 장소 화면)로 넘긴다.
-    func finishEnded(startPage: Int?, endPage: Int?, note: String? = nil) {
-        guard let session = endedSession else { return }
-        session.startPage = startPage
-        session.endPage = endPage
-        session.note = Self.trimmedNote(note)
-        try? modelContext.save()
-        endedSession = nil
-        sessionAwaitingPlace = session
-    }
-
     /// ended 단계 저장(인라인): 페이지 + 인라인 장소를 바로 반영하고 종료(별도 장소 화면 없음).
     /// placeName이 비면 장소 없이 저장(장소는 선택).
     func finishEndedInline(
@@ -162,16 +148,10 @@ final class ReadingSessionController {
         return trimmed.isEmpty ? nil : trimmed
     }
 
-    /// 종료된 세션에 장소를 연결하고 질문을 닫는다.
+    /// 세션에 장소를 연결한다(독서여정의 장소 변경/추가에서 사용).
     func assignPlace(_ place: Place, to session: ReadingSession) {
         session.place = place
         try? modelContext.save()
-        sessionAwaitingPlace = nil
-    }
-
-    /// 장소 질문 건너뛰기(장소는 선택 — 세션은 그대로 저장된 채 닫힘).
-    func skipPlacePrompt() {
-        sessionAwaitingPlace = nil
     }
 
     /// 오버레이 닫기/취소. 진행 중(ready/running/paused) 세션은 폐기, 이미 종료된 세션은 저장된 채 닫는다.

@@ -47,7 +47,7 @@ struct MemoryDetailView: View {
                 BookCoverView(urlString: session.book?.coverRemoteURL)
                     .frame(width: 64, height: 96)
                 VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
-                    Text(session.book?.title ?? "제목 없는 책")
+                    Text(session.book?.displayTitle ?? "제목 없는 책")
                         .font(.title3)
                         .fontDesign(.serif)
                         .fontWeight(.semibold)

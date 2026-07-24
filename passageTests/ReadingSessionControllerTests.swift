@@ -80,7 +80,7 @@ struct ReadingSessionControllerTests {
         _ = container
     }
 
-    @Test func finishEndedSetsPagesAndAwaitsPlace() {
+    @Test func finishEndedInlineSetsPagesWithoutPlace() throws {
         let (container, ctx) = makeContext()
         let book = Book(title: "책")
         ctx.insert(book)
@@ -89,11 +89,13 @@ struct ReadingSessionControllerTests {
         controller.confirmStart(startPage: 10)
         controller.endReading()
 
-        controller.finishEnded(startPage: 10, endPage: 42)
+        controller.finishEndedInline(startPage: 10, endPage: 42, placeName: nil)
         #expect(controller.phase == nil)
         #expect(controller.endedSession == nil)
-        #expect(controller.sessionAwaitingPlace?.startPage == 10)
-        #expect(controller.sessionAwaitingPlace?.endPage == 42)
+        let session = try #require(try ctx.fetch(FetchDescriptor<ReadingSession>()).first)
+        #expect(session.startPage == 10)
+        #expect(session.endPage == 42)
+        #expect(session.place == nil)          // 장소 없이 저장(장소는 선택)
         _ = container
     }
 
@@ -109,8 +111,7 @@ struct ReadingSessionControllerTests {
         controller.finishEndedInline(startPage: 10, endPage: 40, placeName: "동네 카페",
                                      latitude: 37.5, longitude: 127.0, address: "서울")
         #expect(controller.phase == nil)
-        #expect(controller.sessionAwaitingPlace == nil)   // 장소 화면으로 가지 않음
-        #expect(controller.endedSession == nil)
+        #expect(controller.endedSession == nil)   // 별도 장소 화면 없이 인라인 저장 후 닫힘
         let sessions = try ctx.fetch(FetchDescriptor<ReadingSession>())
         #expect(sessions.first?.endPage == 40)
         #expect(sessions.first?.place?.name == "동네 카페")

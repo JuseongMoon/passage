@@ -28,7 +28,7 @@ struct MemoryRow: View {
 
     @ViewBuilder private var title: some View {
         if showsBook {
-            Text(session.book?.title ?? "제목 없는 책")
+            Text(session.book?.displayTitle ?? "제목 없는 책")
                 .font(.headline)
                 .fontDesign(.serif)          // 책 제목 = 문학적 톤
                 .foregroundStyle(PassagePalette.ink)

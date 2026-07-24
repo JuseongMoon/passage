@@ -43,7 +43,7 @@ struct BookJourney: Identifiable, Hashable, Sendable {
 
     init(book: Book) {
         self.id = book.id
-        self.title = book.title
+        self.title = book.displayTitle
         self.author = book.author
         self.coverURL = book.coverRemoteURL
         // 서재 카드와 같은 색: 표지 대표색이 추출돼 있으면 그 색(은은한 톤), 없으면 book.id 해시 폴백.

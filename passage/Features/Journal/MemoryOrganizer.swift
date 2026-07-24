@@ -36,7 +36,7 @@ enum MemoryOrganizer {
             let title: String
             switch lens {
             case .book:
-                let t = sorted.first?.book?.title ?? ""
+                let t = sorted.first?.book?.displayTitle ?? ""
                 title = t.isEmpty ? "제목 없는 책" : t
             case .place:
                 let n = sorted.first?.place?.name ?? ""

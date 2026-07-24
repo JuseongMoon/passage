@@ -13,7 +13,7 @@ import Foundation
 @MainActor
 struct PlaceTests {
 
-    @Test func assignPlaceLinksSessionAndClosesPrompt() throws {
+    @Test func assignPlaceLinksSession() throws {
         let container = PassageModelContainer.makePreview()
         let context = container.mainContext
         let controller = ReadingSessionController(modelContext: context)
@@ -23,19 +23,17 @@ struct PlaceTests {
         controller.beginReading(book: book)
         controller.confirmStart(startPage: nil)
         controller.endReading()
-        controller.finishEnded(startPage: nil, endPage: nil)
-        #expect(controller.sessionAwaitingPlace != nil)
+        controller.finishEndedInline(startPage: nil, endPage: nil, placeName: nil)
 
+        let session = try #require(try context.fetch(FetchDescriptor<ReadingSession>()).first)
         let place = Place(name: "동네 카페")
         context.insert(place)
-        let session = try #require(controller.sessionAwaitingPlace)
-        controller.assignPlace(place, to: session)
+        controller.assignPlace(place, to: session)   // 독서여정에서 장소를 나중에 연결
 
-        #expect(controller.sessionAwaitingPlace == nil)
         #expect(session.place?.name == "동네 카페")
     }
 
-    @Test func skipPlaceKeepsSessionWithoutPlace() throws {
+    @Test func finishEndedInlineWithoutPlaceKeepsSession() throws {
         let container = PassageModelContainer.makePreview()
         let context = container.mainContext
         let controller = ReadingSessionController(modelContext: context)
@@ -45,12 +43,10 @@ struct PlaceTests {
         controller.beginReading(book: book)
         controller.confirmStart(startPage: nil)
         controller.endReading()
-        controller.finishEnded(startPage: nil, endPage: nil)
-        let session = try #require(controller.sessionAwaitingPlace)
-        controller.skipPlacePrompt()
+        controller.finishEndedInline(startPage: nil, endPage: nil, placeName: nil)
 
-        #expect(controller.sessionAwaitingPlace == nil)
-        #expect(session.place == nil)
+        let session = try #require(try context.fetch(FetchDescriptor<ReadingSession>()).first)
+        #expect(session.place == nil)     // 장소는 선택 — 없이도 저장
         #expect(session.endDate != nil)   // 세션(기억)은 그대로 저장됨
     }
 

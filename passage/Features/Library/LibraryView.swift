@@ -64,7 +64,8 @@ struct LibraryView: View {
             front = 0   // 필터가 바뀌면 목록이 달라지므로 맨 앞으로
         }
         .task {
-            coverColorFiller.backfillMissing()   // 표지색 미추출 책을 백그라운드로 채움(멱등)
+            Book.normalizeTitles(in: modelContext)   // 기존 제목의 괄호 부제를 분리·저장(멱등)
+            coverColorFiller.backfillMissing()        // 표지색 미추출 책을 백그라운드로 채움(멱등)
         }
     }
 

@@ -34,11 +34,7 @@ struct RootView: View {
             get: { sessionController.isFlowActive },
             set: { _ in }
         )) {
-            if sessionController.phase != nil {
-                ReadingSessionView()
-            } else if let session = sessionController.sessionAwaitingPlace {
-                WhereDidYouReadView(session: session)
-            }
+            ReadingSessionView()
         }
         .preferredColorScheme(appearanceMode.colorScheme)   // 설정의 화면 모드(기본=시스템)
         .task {
