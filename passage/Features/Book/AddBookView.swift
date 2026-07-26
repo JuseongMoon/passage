@@ -53,14 +53,16 @@ struct AddBookView: View {
     }
 
     private func save() {
+        // 0·음수는 "모름"으로 본다 — 전체 페이지 수는 페이지 값의 상한이라 잘못된 값이 들어가면 안 된다.
+        let total = PageRules.normalizedTotal(Int(totalPages.filter(\.isNumber)))
         let book = Book(
             title: trimmedTitle,
             author: author.trimmingCharacters(in: .whitespacesAndNewlines),
             isbn: isbn.isEmpty ? nil : isbn.trimmingCharacters(in: .whitespaces),
-            totalPageCount: Int(totalPages)
+            totalPageCount: total
         )
         modelContext.insert(book)
-        if Int(totalPages) == nil {   // 페이지 수 안 넣었으면 ISBN으로 보조 조회
+        if total == nil {   // 페이지 수 안 넣었으면 ISBN으로 보조 조회
             pageCountFiller.fillIfNeeded(bookID: book.id, isbn: isbn.isEmpty ? nil : isbn)
         }
         dismiss()

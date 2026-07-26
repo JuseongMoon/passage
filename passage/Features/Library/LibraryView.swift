@@ -65,6 +65,7 @@ struct LibraryView: View {
         }
         .task {
             Book.normalizeTitles(in: modelContext)   // 기존 제목의 괄호 부제를 분리·저장(멱등)
+            ReadingSession.normalizePages(in: modelContext)   // 상한 밖 페이지를 교정(멱등) — 슬라이더보다 먼저
             coverColorFiller.backfillMissing()        // 표지색 미추출 책을 백그라운드로 채움(멱등)
         }
     }
@@ -206,7 +207,8 @@ struct LibraryView: View {
 
     private func savePageCount() {
         guard let book = bookPendingPageCount else { return }
-        book.totalPageCount = Int(pageCountText).flatMap { $0 > 0 ? $0 : nil }
+        book.totalPageCount = PageRules.normalizedTotal(Int(pageCountText.filter(\.isNumber)))
+        ReadingSession.normalizePages(of: book)   // 상한을 낮췄으면 기존 기록도 따라 내려온다
         try? modelContext.save()
         bookPendingPageCount = nil
     }

@@ -17,8 +17,12 @@ struct ReadingSessionView: View {
     @Environment(ReadingSessionController.self) private var controller
     @Environment(AppDependencies.self) private var dependencies
 
-    @State private var startPageText = ""
-    @State private var endPageText = ""
+    // 페이지는 슬라이더로 잡는다 — 값이 항상 범위 안이므로 문자열이 아니라 정수로 다룬다.
+    @State private var startPage = 1
+    @State private var endPage = 1
+    @State private var totalPageText = ""            // 전체 페이지 수를 모를 때만 쓰는 입력
+    @State private var editingStartPage = false
+    @State private var startPageDraft = ""
     @State private var placeText = ""
     @State private var noteText = ""
     @State private var addressText = ""                       // 장소 = 현재 위치 주소(수정·검색 가능)
@@ -31,7 +35,7 @@ struct ReadingSessionView: View {
     @State private var didPrefillStartPage = false
     @FocusState private var focusedField: Field?
 
-    private enum Field { case start, end, place, note, address }
+    private enum Field { case total, place, note, address }
 
     /// 표지 히어로 높이(상태바 밑까지 확장 포함).
     private let heroHeight: CGFloat = 300
@@ -136,20 +140,36 @@ struct ReadingSessionView: View {
 
     // MARK: ready
 
+    /// 시작 페이지도 슬라이더로 고른다 — 앱을 쓰기 전부터 읽던 책이면 지금 위치로 옮겨야 하므로
+    /// 지난 도달점(anchor)을 참고점으로 두되 앞뒤로 자유롭게 움직일 수 있다(하한 없음).
     private var readyRows: some View {
-        VStack(spacing: Theme.Spacing.lg) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
             infoRow("독서 시간", value: TimeInterval(0).clockString)
-            if let suggested = suggestedStartPage {
-                infoRow("시작 페이지", value: "\(suggested)")
+            if let total = bookTotal {
+                PageSlider(
+                    page: $startPage,
+                    label: "시작 페이지",
+                    total: total,
+                    anchor: suggestedStartPage,
+                    swatch: swatch,
+                    caption: readyCaption
+                )
             } else {
-                editableRow("시작 페이지", text: $startPageText, placeholder: "1", field: .start)
+                totalPageRow
             }
         }
     }
 
+    private var readyCaption: String {
+        if let suggested = suggestedStartPage {
+            return "지난번 \(suggested)p까지 읽었어요 · 숫자를 눌러 직접 입력할 수 있어요"
+        }
+        return "이미 읽고 있던 책이면 지금 페이지로 옮겨 주세요 · 숫자를 눌러 직접 입력할 수 있어요"
+    }
+
     private var readyButton: some View {
         primaryPill("읽기 시작하기", systemImage: "play.fill") {
-            controller.confirmStart(startPage: Int(startPageText))
+            controller.confirmStart(startPage: bookTotal == nil ? nil : startPage)
         }
     }
 
@@ -184,10 +204,22 @@ struct ReadingSessionView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
                 titleBlock
-                VStack(spacing: Theme.Spacing.lg) {
+                VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
                     infoRow("독서 시간", value: (controller.endedSession?.duration ?? 0).clockString)
-                    editableRow("시작 페이지", text: $startPageText, placeholder: "p.", field: .start)
-                    editableRow("끝 페이지", text: $endPageText, placeholder: "p.", field: .end)
+                    if let total = bookTotal {
+                        startPageRow
+                        PageSlider(
+                            page: $endPage,
+                            label: "도착 페이지",     // '종료'는 책의 마지막으로 읽힌다 → 여정(시작↔도착) 은유로
+                            total: total,
+                            anchor: startPage,
+                            lowerLimit: startPage,      // 시작 페이지 뒤로는 못 간다 → 역전 자체가 불가능
+                            swatch: swatch,
+                            caption: "어디까지 읽었는지 옮겨 주세요 · 숫자를 눌러 직접 입력할 수 있어요"
+                        )
+                    } else {
+                        totalPageRow
+                    }
                     noteSection
                     placeSection
                 }
@@ -199,9 +231,73 @@ struct ReadingSessionView: View {
             .padding(.bottom, Theme.Spacing.lg)
         }
         .scrollDismissesKeyboard(.interactively)
+        .alert("시작 페이지", isPresented: $editingStartPage) {
+            TextField("페이지", text: $startPageDraft)
+                .keyboardType(.numberPad)
+            Button("확인") { commitStartPage() }
+            Button("취소", role: .cancel) { }
+        } message: {
+            Text("이번 독서를 시작한 페이지예요.")
+        }
         .task(id: controller.endedSession?.id) {
-            prefillEndedStartPage()
+            prefillEndedPages()
             await autofillLocationIfPossible()
+        }
+    }
+
+    /// 시작 페이지 — 세션에 이미 확정된 값이지만, 잘못 잡았다면 여기서 고칠 수 있다(탭 → 직접 입력).
+    private var startPageRow: some View {
+        Button {
+            startPageDraft = String(startPage)
+            editingStartPage = true
+        } label: {
+            VStack(spacing: 6) {
+                HStack {
+                    Text("시작 페이지")
+                        .font(.system(size: 19, weight: .medium))
+                        .foregroundStyle(swatch.ink)
+                    Spacer()
+                    Text(verbatim: "\(startPage)p")     // 페이지는 번호 — 천 단위 쉼표를 넣지 않는다
+                        .font(.system(size: 19, weight: .medium).monospacedDigit())
+                        .foregroundStyle(swatch.ink)
+                    Image(systemName: "pencil")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(swatch.dim)
+                }
+                rowDivider
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("시작 페이지 \(startPage)쪽. 눌러서 수정")
+    }
+
+    /// 전체 페이지 수를 모르면 트랙의 상한이 없어 슬라이더를 그릴 수 없다 → 여기서 바로 채운다.
+    /// 채우는 즉시 슬라이더로 바뀌고, 건너뛰면 이번 기록은 페이지 없이 저장된다(강요하지 않는다).
+    private var totalPageRow: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            HStack {
+                Text("전체 페이지 수")
+                    .font(.system(size: 19, weight: .medium))
+                    .foregroundStyle(swatch.ink)
+                Spacer()
+                TextField("", text: $totalPageText, prompt: Text("예: 320").foregroundStyle(swatch.dim))
+                    .keyboardType(.numberPad)
+                    .multilineTextAlignment(.trailing)
+                    .font(.system(size: 19, weight: .medium).monospacedDigit())
+                    .foregroundStyle(swatch.ink)
+                    .focused($focusedField, equals: .total)
+                    .frame(maxWidth: 110)
+                Button("확인") { applyTotalPageCount() }
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(swatch.ink)
+                    .opacity(canApplyTotalPage ? 1 : 0.35)
+                    .disabled(!canApplyTotalPage)
+            }
+            rowDivider
+            Text("전체 페이지 수를 알려주면 어디까지 읽었는지 슬라이더로 표시할 수 있어요.")
+                .font(.system(size: 12))
+                .foregroundStyle(swatch.dim)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -338,26 +434,6 @@ struct ReadingSessionView: View {
         }
     }
 
-    /// label(좌) ←→ 입력(우) + 하단 헤어라인.
-    private func editableRow(_ label: String, text: Binding<String>, placeholder: String, field: Field) -> some View {
-        VStack(spacing: 6) {
-            HStack {
-                Text(label)
-                    .font(.system(size: 19, weight: .medium))
-                    .foregroundStyle(swatch.ink)
-                Spacer()
-                TextField("", text: text, prompt: Text(placeholder).foregroundStyle(swatch.dim))
-                    .keyboardType(.numberPad)
-                    .multilineTextAlignment(.trailing)
-                    .font(.system(size: 19, weight: .medium).monospacedDigit())
-                    .foregroundStyle(swatch.ink)
-                    .focused($focusedField, equals: field)
-                    .frame(maxWidth: 160)
-            }
-            rowDivider
-        }
-    }
-
     private var rowDivider: some View {
         Rectangle()
             .fill(swatch.ink.opacity(0.32))
@@ -421,6 +497,39 @@ struct ReadingSessionView: View {
         controller.pendingBook.flatMap { controller.suggestedStartPage(for: $0) }
     }
 
+    /// 슬라이더의 상한. 전체 페이지 수를 모르면 nil → 슬라이더 대신 전체 페이지 수 입력을 보여준다.
+    private var bookTotal: Int? {
+        PageRules.limit(currentBook?.totalPageCount)
+    }
+
+    /// 페이지 값을 이 책의 범위 안으로 조인다.
+    private func clampToBook(_ value: Int) -> Int {
+        guard let total = bookTotal else { return max(1, value) }
+        return min(max(1, value), total)
+    }
+
+    private var canApplyTotalPage: Bool {
+        PageRules.normalizedTotal(Int(totalPageText.filter(\.isNumber))) != nil
+    }
+
+    /// 전체 페이지 수 확정 — 상한이 생기는 순간 슬라이더로 바뀌므로 현재 값들도 새 범위로 맞춘다.
+    private func applyTotalPageCount() {
+        guard let book = currentBook,
+              let total = PageRules.normalizedTotal(Int(totalPageText.filter(\.isNumber)))
+        else { return }
+        controller.setTotalPageCount(total, for: book)
+        focusedField = nil
+        startPage = min(max(1, startPage), total)
+        endPage = min(max(startPage, endPage), total)
+    }
+
+    /// 시작 페이지 직접 입력 확정. 끝 페이지가 그보다 앞이면 함께 끌어올린다(역전 방지).
+    private func commitStartPage() {
+        guard let value = Int(startPageDraft.filter(\.isNumber)), value > 0 else { return }
+        startPage = clampToBook(value)
+        if endPage < startPage { endPage = startPage }
+    }
+
     private var startPageDisplay: String {
         controller.activeSession?.startPage.map { "\($0)" } ?? "—"
     }
@@ -430,27 +539,32 @@ struct ReadingSessionView: View {
         controller.timerAccumulated + (controller.timerRunningSince.map { max(0, now.timeIntervalSince($0)) } ?? 0)
     }
 
+    /// 슬라이더 초기 위치 — 지난 도달점(없으면 1)에서 출발한다.
     private func prefillStartPage() {
         guard !didPrefillStartPage else { return }
         didPrefillStartPage = true
-        if let page = suggestedStartPage
+        let base = suggestedStartPage
             ?? controller.activeSession?.startPage
-            ?? controller.endedSession?.startPage {
-            startPageText = String(page)
-        }
+            ?? controller.endedSession?.startPage
+            ?? 1
+        startPage = clampToBook(base)
+        endPage = max(startPage, clampToBook(controller.endedSession?.endPage ?? startPage))
+        totalPageText = currentBook?.totalPageCount.map(String.init) ?? ""
     }
 
-    /// 종료 단계 진입 시 세션의 시작 페이지를 필드에 반영한다(비어 있을 때만).
-    private func prefillEndedStartPage() {
-        if startPageText.isEmpty, let start = controller.endedSession?.startPage {
-            startPageText = String(start)
-        }
+    /// 종료 단계 진입 시 세션에 확정된 시작 페이지를 반영하고, 끝 페이지를 그 위에서 출발시킨다.
+    private func prefillEndedPages() {
+        guard let session = controller.endedSession else { return }
+        startPage = clampToBook(session.startPage ?? startPage)
+        endPage = max(startPage, clampToBook(session.endPage ?? startPage))
     }
 
+    /// 전체 페이지 수를 끝내 모르면 페이지 없이 저장한다(슬라이더가 없었으므로 기록할 값도 없다).
     private func saveEnded() {
+        let hasPages = bookTotal != nil
         controller.finishEndedInline(
-            startPage: Int(startPageText),
-            endPage: Int(endPageText),
+            startPage: hasPages ? startPage : nil,
+            endPage: hasPages ? endPage : nil,
             note: noteText,
             placeName: resolvedPlaceName,
             latitude: placeCoord?.latitude,

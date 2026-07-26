@@ -12,7 +12,9 @@ Passage는 **Reading Memory App**이다. 무엇을 · 어디서 · 얼마나 · 
 - 항상 지향한다: **Calm · Minimal · Beautiful · Reflective** (Apple Journal / Books / Day One 감성)
 
 ## 2. 기술 스택
-SwiftUI · SwiftData(+CloudKit private sync) · Observation(`@Observable`) · async/await · **Swift 6** · **iOS 26+**
+SwiftUI · SwiftData(+CloudKit private sync) · Observation(`@Observable`) · async/await · **Swift 6** · **iOS 18.6+**
+- ⚠️ **앱 배포 타깃은 iOS 18.6**이다(프로젝트/테스트 타깃 설정값 26.5에 속지 말 것 — 앱 타깃이 덮어쓴다).
+  최신 API를 쓰기 전에 **가용 버전을 반드시 확인**한다. iOS 26 전용 API(예: `Slider(neutralValue:enabledBounds:)`)는 쓸 수 없다.
 - 지도: **Naver Maps** SDK(`NMapsMap`, SPM) + REST(geocode / reverse-geocode)
 - UIKit은 `UIViewRepresentable` 브리지 등 **불가피한 경우만** (지도 뷰가 대표적 예외)
 - 테스트: **Swift Testing**

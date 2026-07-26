@@ -31,6 +31,7 @@ final class PageCountFiller {
                   book.totalPageCount == nil       // 그새 사용자가 직접 입력했으면 덮지 않음
             else { return }
             book.totalPageCount = pages
+            ReadingSession.normalizePages(of: book)   // 새 상한에 기존 기록을 맞춘다
             try? modelContext.save()
         }
     }

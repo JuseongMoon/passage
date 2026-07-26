@@ -1,7 +1,7 @@
 # UI GUIDE — Passage
 
 > 지향: **Calm · Minimal · Beautiful · Reflective** (Apple Journal / Books / Day One).
-> 원칙: **덜 넣는다.** 여백을 아끼지 않는다. 네이티브(iOS 26 HIG)를 최대한 따른다. 커스텀은 이유가 있을 때만.
+> 원칙: **덜 넣는다.** 여백을 아끼지 않는다. 네이티브(Apple HIG)를 최대한 따른다. 커스텀은 이유가 있을 때만.
 
 > ⚠️ **2026-07 보딩패스 재구성(DECISIONS #15) + 톤 통일(#18)**: **전 탭(서재·독서여정·설정)이 웜 `PassagePalette` 톤을 공유한다** — 웜 `appBg` 배경 · 커스텀 대형 잉크 헤더(`PassageScreenHeader`) · `ink/inkMuted` 텍스트 · `cardBody` 카드 · `warmAccent`. **티켓/바코드/원형시계 모티프는 독서 루프 표면(서재 홈 · 세션 오버레이 · 책 추가)에 한정**(설정 등엔 강요하지 않는다 — Calm·Minimal). 아래 뉴트럴·시스템색·Dynamic Type 지침은 이제 **팔레트만 웜 토큰으로 치환**해 읽는다(구조/여백/타이포 원칙은 동일). 고정 pt는 dense 레이아웃(티켓·타이머)에만 예외. 철학(Calm·Reflective, Memory over Productivity)은 전 화면 동일.
 
@@ -56,7 +56,8 @@
 - `NavigationStack` + 값 기반 라우팅. `TabView`(Library · Journal · Settings).
 - 시트는 회상/입력 흐름에, 풀스크린 커버는 몰입(읽는 중)에.
 - 시트 detent는 `.medium`/`.large` 적절히. 큰 제목(`.navigationBarTitleDisplayMode`)은 화면 성격에 맞춰.
-- iOS 26 네이티브 내비게이션/재질(자연스러운 반투명·깊이)을 그대로 활용. 임의 재현 금지.
+- 네이티브 내비게이션/재질(자연스러운 반투명·깊이)을 그대로 활용. 임의 재현 금지.
+  단 **배포 타깃은 iOS 18.6** — OS 전용 재질·컨트롤을 쓰기 전 가용 버전을 확인한다(→ DECISIONS #5 정정).
 
 ## 7. Component 규칙
 - 2곳 이상에서 쓰이면 `Core/DesignSystem/Components`로 승격, 아니면 Feature 로컬.

@@ -58,7 +58,16 @@ final class ReadingSessionController {
         let completed: [ReadingSession] = (book.sessions ?? [])
             .filter { $0.endDate != nil }
             .sorted { ($0.endDate ?? $0.startDate) > ($1.endDate ?? $1.startDate) }
-        return completed.compactMap(\.endPage).first
+        // 제안값도 상한 안으로 — 예전에 잘못 저장된 값이 다음 세션까지 오염시키지 않게 한다.
+        return PageRules.clamped(completed.compactMap(\.endPage).first, total: book.totalPageCount)
+    }
+
+    /// 전체 페이지 수를 정한다(세션 화면에서 즉시 입력하는 경로).
+    /// 상한이 곧 페이지 값의 권위이므로, 바뀌는 즉시 그 책의 기록도 새 범위에 맞춘다.
+    func setTotalPageCount(_ total: Int?, for book: Book) {
+        book.totalPageCount = PageRules.normalizedTotal(total)
+        ReadingSession.normalizePages(of: book)
+        try? modelContext.save()
     }
 
     /// 준비 단계 진입(시작 페이지를 고를 수 있게).
@@ -72,7 +81,10 @@ final class ReadingSessionController {
         guard let book = pendingBook else { return }
         // 첫 독서(지난 세션 없음)는 1페이지부터 시작한다. 이어읽기에서 값이 없으면 미기록(선택).
         let resolvedStartPage = startPage ?? (suggestedStartPage(for: book) == nil ? 1 : nil)
-        let session = ReadingSession(book: book, startPage: resolvedStartPage)
+        let session = ReadingSession(
+            book: book,
+            startPage: PageRules.clamped(resolvedStartPage, total: book.totalPageCount)
+        )
         modelContext.insert(session)
         try? modelContext.save()      // 즉시 저장 → 앱 종료·크래시에도 유지
         pendingBook = nil
@@ -129,8 +141,10 @@ final class ReadingSessionController {
         address: String? = nil
     ) {
         guard let session = endedSession else { return }
-        session.startPage = startPage
-        session.endPage = endPage
+        // UI가 무엇을 보내든 규칙을 통과시킨다 — 저장된 페이지는 언제나 상한 안에 있다.
+        let pages = PageRules.normalized(start: startPage, end: endPage, total: session.book?.totalPageCount)
+        session.startPage = pages.start
+        session.endPage = pages.end
         session.note = Self.trimmedNote(note)
         let name = (placeName ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         if !name.isEmpty {
