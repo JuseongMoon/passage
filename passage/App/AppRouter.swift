@@ -10,8 +10,27 @@
 import SwiftUI
 
 /// 루트 탭 식별자.
-enum RootTab: Hashable, Sendable {
+enum RootTab: Hashable, Sendable, CaseIterable, Identifiable {
     case library, journal, settings
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .library: "서재"
+        case .journal: "독서여정"
+        case .settings: "설정"
+        }
+    }
+
+    /// 커스텀 탭바 아이콘(선택 시 채움 없이 두께만 바뀐다 — Calm/Minimal).
+    var systemImage: String {
+        switch self {
+        case .library: "book.closed"
+        case .journal: "map"
+        case .settings: "gearshape"
+        }
+    }
 }
 
 /// 앱 전역 내비게이션 상태 — 선택된 탭 + 독서여정 포커스 요청.

@@ -35,7 +35,7 @@ struct PassCardView: View {
             expandedBody
                 .frame(maxWidth: .infinity)
                 .frame(
-                    height: isFront ? max(0, expandedMinHeight - PassLayout.headerHeight) : 0,
+                    height: isFront ? max(0, expandedMinHeight - headerHeight) : 0,
                     alignment: .top
                 )
                 .clipped()
@@ -73,29 +73,30 @@ struct PassCardView: View {
 
     // MARK: 헤더 스트립
 
+    /// 펼친 카드는 헤더 스트립을 접는다 — 제목·메뉴가 티켓 블록으로 올라갔으므로
+    /// 스트립을 남기면 목업에 없는 빈 컬러 띠가 카드 상단에 생긴다(0↔46 보간되어 부드럽게 전환).
+    private var headerHeight: CGFloat {
+        isFront ? 0 : PassLayout.headerHeight
+    }
+
     private var header: some View {
         HStack(spacing: Theme.Spacing.sm) {
             if isFront {
-                // 펼친 카드의 메뉴(...)는 표지 우측 상단으로 옮겼다 — 헤더 스트립은 컬러만 남긴다.
-                // 컬러(swatch.base)는 여기서 티켓 블록까지 그대로 이어진다.
                 Spacer(minLength: 0)
             } else {
+                // 접힌 카드는 제목만 — 목업처럼 컬러 스트립을 최대한 비워 둔다.
                 Text(pass.title)
-                    .font(.system(size: 16))
+                    .font(.system(size: 17, weight: .semibold))
                     .foregroundStyle(pass.swatch.ink)
                     .lineLimit(1)
                     .truncationMode(.tail)
                 Spacer(minLength: Theme.Spacing.sm)
-                Text(pass.headerDate)
-                    .font(.system(size: 11))
-                    .tracking(0.8)
-                    .foregroundStyle(pass.swatch.dim)
-                    .lineLimit(1)
             }
         }
         .padding(.horizontal, Theme.Spacing.md)
-        .frame(height: PassLayout.headerHeight)
+        .frame(height: headerHeight)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .clipped()
         .contentShape(.rect)
         .onTapGesture { if !isFront { onOpen() } }
         .accessibilityElement(children: isFront ? .contain : .combine)
@@ -157,17 +158,20 @@ struct PassCardView: View {
 
     private var ticket: some View {
         HStack(alignment: .top, spacing: Theme.Spacing.md) {
+            cover
             VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(pass.title)
-                        .font(.system(size: 18))
+                        .font(.system(size: 22, weight: .semibold))
                         .foregroundStyle(pass.swatch.ink)
                         .lineLimit(2)
                         .truncationMode(.tail)
                         .fixedSize(horizontal: false, vertical: true)
                     if !pass.author.isEmpty {
-                        Text(pass.author)
-                            .font(.system(size: 12))
+                        // 목업: 저자는 대문자 + 자간을 벌린 캡션.
+                        Text(pass.author.uppercased())
+                            .font(.system(size: 12, weight: .regular))
+                            .tracking(1.2)
                             .foregroundStyle(pass.swatch.dim)
                             .lineLimit(1)
                     }
@@ -175,7 +179,7 @@ struct PassCardView: View {
                 Spacer(minLength: Theme.Spacing.sm)
                 HStack(alignment: .lastTextBaseline, spacing: Theme.Spacing.xs) {
                     Text(pass.totalDurationText)
-                        .font(.system(size: 28, weight: .medium).monospacedDigit())
+                        .font(.system(size: 28, weight: .semibold).monospacedDigit())
                         .foregroundStyle(pass.swatch.ink)
                         .lineLimit(1)
                         .minimumScaleFactor(0.6)
@@ -188,14 +192,18 @@ struct PassCardView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-            cover
+            // 메뉴(...)는 카드 우측 상단 — 제목이 그 아래로 파고들지 않도록 행의 한 칸으로 둔다.
+            if isFront {
+                menuButton
+            }
         }
-        // 표지 높이(128)가 하한 → 짧은 제목은 총시간이 표지 하단에 정렬. 제목이 길면 그만큼만 늘어난다.
+        // 표지 높이(112)가 하한 → 짧은 제목은 총시간이 표지 하단에 정렬. 제목이 길면 그만큼만 늘어난다.
         // fixedSize로 콘텐츠 높이에 딱 맞춰(hug) 색상 영역이 남는 세로 공간까지 삼켜 과하게 커지는 것을
         // 막는다 — 안 그러면 티켓이 세로를 탐욕적으로 채워 가운데 여백이 생기고 아래 CTA가 밀려난다.
-        .frame(minHeight: 128)
+        .frame(minHeight: 112)
         .fixedSize(horizontal: false, vertical: true)
         .padding(Theme.Spacing.md)
+        .padding(.top, 2)   // 표지·제목이 카드 상단 곡률에 너무 붙지 않도록 아주 살짝 띄운다
         // 배경 없음 — 컬러(swatch.base)는 카드 전체 배경 한 장으로 깔려 헤더에서 끊김 없이 이어진다.
     }
 
@@ -207,13 +215,13 @@ struct PassCardView: View {
                 Rectangle().fill(pass.swatch.cover)
             }
         }
-        // 상단·우측을 고정한 채 좌·하로 키워 표지 하단이 더 아래로 닿게 한다(좌측 하단 방향 확장).
-        .frame(width: 96, height: 128)
+        // 목업: 표지는 좌측 상단에 작게. 우측 텍스트 블록이 카드 너비 대부분을 쓴다.
+        .frame(width: 78, height: 112)
         .clipShape(.rect(cornerRadius: 2, style: .continuous))
-        // 펼친 카드의 메뉴(...)는 표지 우측 상단에 오버레이한다.
-        .overlay(alignment: .topTrailing) {
-            if isFront { menuButton.padding(6) }
-        }
+        // 표지가 카드 컬러에 묻히지 않고 아주 살짝 떠 보이도록 — 밝은 표지에도 눌리지 않게
+        // 어두운 그림자와 옅은 광량(glow)을 함께 얹는다.
+        .shadow(color: .black.opacity(0.18), radius: 5, x: 0, y: 2)
+        .shadow(color: .white.opacity(0.10), radius: 1.5, x: 0, y: -0.5)
     }
 
     private var journeys: some View {
