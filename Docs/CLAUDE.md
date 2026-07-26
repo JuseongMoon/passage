@@ -27,22 +27,7 @@ SwiftUI · SwiftData(+CloudKit private sync) · Observation(`@Observable`) · as
 - **Repository 미사용**: SwiftData 관용 방식(`@Query` / `FetchDescriptor`) + 의도가 드러나는 도메인 서비스 메서드로 쓰기 캡슐화.
 - **Session is Source of Truth**: 모든 통계·저널은 `ReadingSession`에서 파생한다. 활성 세션은 **시작 즉시 저장**(앱 종료·크래시에도 유지).
 
-## 4. 프로젝트 구조
-```
-passage/
-  App/         진입점 · Root TabView · DI(AppDependencies)
-  Features/    Library · Reading · Place · Book · Journal · Settings
-  Core/
-    Models/       Book · ReadingSession · Place  (+ Schema/ Migration)
-    Persistence/  ModelContainer 구성 · (필요 시 ModelActor)
-    Services/     Naver · BookSearch · Location · ImageStore · Auth
-    DesignSystem/ Theme · Components · Modifiers
-    Extensions/
-  App/Config/  *.xcconfig · Secrets.xcconfig(gitignored) — target membership 예외로 번들 제외
-  Resources/   Assets · Localizable(.xcstrings)
-```
-
-## 5. 코딩 규칙
+## 4. 코딩 규칙
 - **동시성**: Swift 6 strict concurrency. UI·Model 접근은 기본 `@MainActor`. 백그라운드 대량 작업만 `@ModelActor`.
   구조(actor/`@MainActor`) 변경은 **신중히** — 작은 협력 패턴(yield, priority 조정)을 먼저 시도한다.
 - **SwiftData × CloudKit**: 모든 저장 속성은 `optional` 또는 **기본값**. `@Attribute(.unique)` **금지**(앱단 dedup). 관계는 `optional` + **inverse 필수**.
@@ -51,7 +36,7 @@ passage/
 - **UI 문구는 한국어.** Dynamic Type · 접근성(VoiceOver) · 다크모드 항상 지원.
 - **시크릿**: `Secrets.xcconfig`(gitignored)에만. 코드·문서·커밋에 값 하드코딩 금지.
 
-## 6. 반드시 지킬 원칙
+## 5. 반드시 지킬 원칙
 1. Gamification · 목표 · 스트릭 · 경쟁 · 대시보드를 **추가하지 않는다.** 새 기능은 "이게 기억을 돕는가?"로 판단.
 2. Calm · Minimal을 해치면 넣지 않는다. **의심되면 덜 넣는다.**
 3. 스키마 변경은 `VersionedSchema` + `MigrationPlan`으로. **파괴적 변경 전 사용자 확인.**
@@ -59,5 +44,5 @@ passage/
 5. 코드 변경 후 **전체 빌드**로 컴파일 확인, 데이터 흐름은 실제 데이터로 검증.
 6. 주요 결정은 `Docs/DECISIONS.md`에 기록하고 문서를 최신으로 유지.
 
-## 7. 문서 맵
+## 6. 문서 맵
 제품 `Docs/PRD.md` · 구조/세팅 `Docs/ARCHITECTURE.md` · 디자인 `Docs/UI_GUIDE.md` · 로드맵 `Docs/ROADMAP.md` · 결정 `Docs/DECISIONS.md`
