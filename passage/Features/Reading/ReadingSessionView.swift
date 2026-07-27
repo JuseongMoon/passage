@@ -21,8 +21,6 @@ struct ReadingSessionView: View {
     @State private var startPage = 1
     @State private var endPage = 1
     @State private var totalPageText = ""            // 전체 페이지 수를 모를 때만 쓰는 입력
-    @State private var editingStartPage = false
-    @State private var startPageDraft = ""
     @State private var placeText = ""
     @State private var noteText = ""
     @State private var addressText = ""                       // 장소 = 현재 위치 주소(수정·검색 가능)
@@ -175,12 +173,18 @@ struct ReadingSessionView: View {
 
     // MARK: running / paused
 
+    /// 준비 화면과 같은 모습을 그대로 이어간다 — 슬라이더만 사라지고 값은 그 자리에 남는다.
+    /// (시작 페이지는 이미 확정됐다. 잘못 잡았다면 종료 화면에서 고친다.)
     private var runningRows: some View {
-        VStack(spacing: Theme.Spacing.lg) {
+        VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
             TimelineView(.periodic(from: .now, by: 1)) { context in
                 infoRow("독서 시간", value: liveElapsed(context.date).clockString)
             }
-            infoRow("시작 페이지", value: startPageDisplay)
+            if let page = controller.activeSession?.startPage {
+                PageValueField(label: "시작 페이지", page: page, swatch: swatch, total: bookTotal)
+            } else {
+                infoRow("시작 페이지", value: "—")     // 전체 페이지 수를 모른 채 시작한 경우
+            }
         }
     }
 
@@ -207,13 +211,12 @@ struct ReadingSessionView: View {
                 VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
                     infoRow("독서 시간", value: (controller.endedSession?.duration ?? 0).clockString)
                     if let total = bookTotal {
-                        startPageRow
-                        PageSlider(
-                            page: $endPage,
-                            label: "도착 페이지",     // '종료'는 책의 마지막으로 읽힌다 → 여정(시작↔도착) 은유로
+                        // '종료'는 책의 마지막으로 읽힌다 → 여정(시작↔도착) 은유로. 두 끝을 한 줄에 붙여
+                        // 이번 여정의 폭이 한눈에 보이게 하고, 트랙은 도착 페이지 하나만 잡는다.
+                        PageRangeSlider(
+                            startPage: $startPage,
+                            endPage: $endPage,
                             total: total,
-                            anchor: startPage,
-                            lowerLimit: startPage,      // 시작 페이지 뒤로는 못 간다 → 역전 자체가 불가능
                             swatch: swatch,
                             caption: "어디까지 읽었는지 옮겨 주세요 · 숫자를 눌러 직접 입력할 수 있어요"
                         )
@@ -231,44 +234,10 @@ struct ReadingSessionView: View {
             .padding(.bottom, Theme.Spacing.lg)
         }
         .scrollDismissesKeyboard(.interactively)
-        .alert("시작 페이지", isPresented: $editingStartPage) {
-            TextField("페이지", text: $startPageDraft)
-                .keyboardType(.numberPad)
-            Button("확인") { commitStartPage() }
-            Button("취소", role: .cancel) { }
-        } message: {
-            Text("이번 독서를 시작한 페이지예요.")
-        }
         .task(id: controller.endedSession?.id) {
             prefillEndedPages()
             await autofillLocationIfPossible()
         }
-    }
-
-    /// 시작 페이지 — 세션에 이미 확정된 값이지만, 잘못 잡았다면 여기서 고칠 수 있다(탭 → 직접 입력).
-    private var startPageRow: some View {
-        Button {
-            startPageDraft = String(startPage)
-            editingStartPage = true
-        } label: {
-            VStack(spacing: 6) {
-                HStack {
-                    Text("시작 페이지")
-                        .font(.system(size: 19, weight: .medium))
-                        .foregroundStyle(swatch.ink)
-                    Spacer()
-                    Text(verbatim: "\(startPage)p")     // 페이지는 번호 — 천 단위 쉼표를 넣지 않는다
-                        .font(.system(size: 19, weight: .medium).monospacedDigit())
-                        .foregroundStyle(swatch.ink)
-                    Image(systemName: "pencil")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(swatch.dim)
-                }
-                rowDivider
-            }
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("시작 페이지 \(startPage)쪽. 눌러서 수정")
     }
 
     /// 전체 페이지 수를 모르면 트랙의 상한이 없어 슬라이더를 그릴 수 없다 → 여기서 바로 채운다.
@@ -521,17 +490,6 @@ struct ReadingSessionView: View {
         focusedField = nil
         startPage = min(max(1, startPage), total)
         endPage = min(max(startPage, endPage), total)
-    }
-
-    /// 시작 페이지 직접 입력 확정. 끝 페이지가 그보다 앞이면 함께 끌어올린다(역전 방지).
-    private func commitStartPage() {
-        guard let value = Int(startPageDraft.filter(\.isNumber)), value > 0 else { return }
-        startPage = clampToBook(value)
-        if endPage < startPage { endPage = startPage }
-    }
-
-    private var startPageDisplay: String {
-        controller.activeSession?.startPage.map { "\($0)" } ?? "—"
     }
 
     /// 진행 중 표시 경과(초). 일시정지면 runningSince가 nil이라 누적값에서 멈춘다.
