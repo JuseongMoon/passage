@@ -40,6 +40,9 @@ struct PassPresentation: Identifiable, Hashable, Sendable {
     /// 헤더 스트립 우측 날짜(최근 세션). 세션이 없으면 "아직 기록 없음".
     let headerDate: String
 
+    /// 완독 여부. CTA 분기(완독이면 '여정보기' 하나)와 ⋮ 메뉴 라벨이 쓴다.
+    let isFinished: Bool
+
     init(book: Book, calendar: Calendar = .current) {
         self.id = book.id
         self.title = book.displayTitle
@@ -87,6 +90,8 @@ struct PassPresentation: Identifiable, Hashable, Sendable {
         self.headerDate = completed.first
             .map { Self.dateText($0.endDate ?? $0.startDate, calendar: calendar) }
             ?? "아직 기록 없음"
+
+        self.isFinished = book.isFinished
     }
 
     /// 책 목록 → 패스 목록(서재는 dateAdded 역순 쿼리이므로 그대로 매핑).

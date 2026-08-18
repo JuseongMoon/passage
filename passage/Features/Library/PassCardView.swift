@@ -18,7 +18,12 @@ struct PassCardView: View {
     let onStartSession: () -> Void
     let onViewJourney: () -> Void
     let onDelete: () -> Void
-    let onSetPageCount: () -> Void
+    let onToggleFinished: () -> Void
+    /// 전체 페이지 수를 카드 안에서 바로 확정한다(별도 알림 없음).
+    let onCommitPageCount: (Int) -> Void
+
+    @State private var pageCountText = ""
+    @FocusState private var pageFieldFocused: Bool
 
     /// 절취선 Y(카드 상단 기준) — 하단 CTA 바로 위 파선 위치를 측정해 노치를 맞춘다.
     @State private var tearY: CGFloat = 0
@@ -106,6 +111,13 @@ struct PassCardView: View {
 
     private var menuButton: some View {
         Menu {
+            // 완독 표시는 관리 행위 → 서재에 둔다(독서여정 시트에서 옮겨왔다). (→ #27)
+            Button { onToggleFinished() } label: {
+                Label(
+                    pass.isFinished ? "읽는중 표시하기" : "완독 표시하기",
+                    systemImage: pass.isFinished ? "book" : "checkmark"
+                )
+            }
             Button(role: .destructive) { onDelete() } label: {
                 Label("책 삭제하기", systemImage: "trash")
             }
@@ -129,7 +141,6 @@ struct PassCardView: View {
             VStack(spacing: 0) {
                 journeys
                     .padding(.vertical, Theme.Spacing.md)
-                progressSection
                 perforation
                 cta
                     .padding(.top, Theme.Spacing.sm)
@@ -177,17 +188,16 @@ struct PassCardView: View {
                     }
                 }
                 Spacer(minLength: Theme.Spacing.sm)
-                HStack(alignment: .lastTextBaseline, spacing: Theme.Spacing.xs) {
+                // 진행률 %는 여기 두지 않는다 — 서재는 "함께한 시간", 진도는 독서여정 책 상세로. (→ #27)
+                VStack(alignment: .leading, spacing: 6) {
                     Text(pass.totalDurationText)
                         .font(.system(size: 28, weight: .semibold).monospacedDigit())
                         .foregroundStyle(pass.swatch.ink)
                         .lineLimit(1)
                         .minimumScaleFactor(0.6)
-                    if let percent = pass.progressPercent {
-                        Text("\(percent)%")
-                            .font(.system(size: 15, weight: .medium).monospacedDigit())
-                            .foregroundStyle(pass.swatch.dim)
-                            .lineLimit(1)
+                    // front에서만 렌더한다 — 비-front까지 TextField를 두면 키보드 툴바가 중복된다.
+                    if isFront && pass.progressPercent == nil {
+                        pageCountField
                     }
                 }
             }
@@ -217,7 +227,7 @@ struct PassCardView: View {
         }
         // 목업: 표지는 좌측 상단에 작게. 우측 텍스트 블록이 카드 너비 대부분을 쓴다.
         .frame(width: 78, height: 112)
-        .clipShape(.rect(cornerRadius: 2, style: .continuous))
+        .clipShape(.rect(cornerRadius: 0))   // 목업: 각진 표지가 티켓의 직선 기하와 맞물린다
         // 표지가 카드 컬러에 묻히지 않고 아주 살짝 떠 보이도록 — 밝은 표지에도 눌리지 않게
         // 어두운 그림자와 옅은 광량(glow)을 함께 얹는다.
         .shadow(color: .black.opacity(0.18), radius: 5, x: 0, y: 2)
@@ -278,52 +288,83 @@ struct PassCardView: View {
         .geometryGroup()
     }
 
-    // 진행률 % 는 티켓의 총 독서시간 옆에 표시한다. 여기서는 전체 페이지 수를 모를 때만
-    // 입력 프롬프트를 둔다(알면 % 가 이미 티켓에 있으므로 이 섹션은 비운다).
-    @ViewBuilder
-    private var progressSection: some View {
-        if pass.progressPercent == nil {
-            Button(action: onSetPageCount) {
-                HStack {
-                    Text("독서 진행률")
-                        .font(.system(size: 12))
-                        .foregroundStyle(PassagePalette.ink)
-                    Spacer()
-                    HStack(spacing: 4) {
-                        Text("전체 페이지 수 입력")
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 10, weight: .semibold))
-                    }
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(PassagePalette.warmAccent)
-                }
-            }
-            .buttonStyle(.plain)
-            .padding(.horizontal, Theme.Spacing.md)
+    /// 전체 페이지 수를 모를 때만 총 독서시간 아래에 뜨는 인라인 입력(목업의 밑줄 필드).
+    /// 별도 화면·알림 없이 카드에서 바로 확정한다. numberPad엔 return 키가 없으므로
+    /// **포커스가 떠날 때** 커밋하고, 키보드 툴바에 내릴 수단을 둔다.
+    private var pageCountField: some View {
+        TextField(
+            "",
+            text: $pageCountText,
+            prompt: Text("총 페이지를 입력해주세요").foregroundStyle(pass.swatch.dim)
+        )
+        .keyboardType(.numberPad)
+        .font(.system(size: 13))
+        .foregroundStyle(pass.swatch.ink)
+        .focused($pageFieldFocused)
+        .frame(maxWidth: 210, alignment: .leading)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(pass.swatch.ink.opacity(0.35))
+                .frame(height: 1)
+                .offset(y: 3)
         }
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("완료") { pageFieldFocused = false }
+            }
+        }
+        .onChange(of: pageFieldFocused) { _, focused in
+            if !focused { commitPageCount() }
+        }
+        .accessibilityLabel("전체 페이지 수")
     }
 
+    /// 숫자만 추려 확정한다. 비었거나 0 이하면 무시(상한 규칙은 호출부의 PageRules가 최종 판정).
+    private func commitPageCount() {
+        guard let value = Int(pageCountText.filter(\.isNumber)), value > 0 else {
+            pageCountText = ""
+            return
+        }
+        onCommitPageCount(value)
+        pageCountText = ""
+    }
+
+    /// 완독한 책은 더 읽을 게 없다 — 남는 건 여정뿐이라 버튼도 하나로 둔다(목업).
+    @ViewBuilder
     private var cta: some View {
-        HStack(spacing: Theme.Spacing.sm) {
+        if pass.isFinished {
             Button(action: onViewJourney) {
                 Text("여정보기")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(PassagePalette.ink)
-                    .frame(maxWidth: .infinity, minHeight: 44)
-                    .background(PassagePalette.appBg, in: .capsule)
-                    .overlay { Capsule().stroke(PassagePalette.hairline, lineWidth: 1) }
-            }
-            .buttonStyle(.plain)
-            Button(action: onStartSession) {
-                Text("책 읽기")
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(PassagePalette.appBg)
                     .frame(maxWidth: .infinity, minHeight: 44)
                     .background(PassagePalette.ink, in: .capsule)
             }
             .buttonStyle(.plain)
+            .padding(.horizontal, Theme.Spacing.md)
+        } else {
+            HStack(spacing: Theme.Spacing.sm) {
+                Button(action: onViewJourney) {
+                    Text("여정보기")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(PassagePalette.ink)
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                        .background(PassagePalette.appBg, in: .capsule)
+                        .overlay { Capsule().stroke(PassagePalette.hairline, lineWidth: 1) }
+                }
+                .buttonStyle(.plain)
+                Button(action: onStartSession) {
+                    Text("책 읽기")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(PassagePalette.appBg)
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                        .background(PassagePalette.ink, in: .capsule)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, Theme.Spacing.md)
         }
-        .padding(.horizontal, Theme.Spacing.md)
     }
 }
 

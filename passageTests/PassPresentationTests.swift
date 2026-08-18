@@ -189,6 +189,38 @@ struct PassPresentationTests {
         #expect(PassPresentation(book: book).swatch == PassagePalette.swatch(for: book))
     }
 
+    // MARK: 완독 상태(CTA 분기·메뉴 라벨의 근거)
+
+    @Test func isFinishedReflectsBookFinishedDate() throws {
+        let container = PassageModelContainer.makePreview()
+        let context = container.mainContext
+        let book = Book(title: "작별하지 않는다", author: "한강")
+        context.insert(book)
+
+        #expect(PassPresentation(book: book).isFinished == false)
+
+        book.finishedDate = .now
+        #expect(PassPresentation(book: book).isFinished == true)
+
+        book.finishedDate = nil          // 되돌리면 다시 읽는 중
+        #expect(PassPresentation(book: book).isFinished == false)
+    }
+
+    /// 완독 여부는 페이지 진행률과 독립이다 — 100%를 읽어도 표시하지 않으면 읽는 중이다.
+    @Test func isFinishedIsIndependentOfProgress() throws {
+        let container = PassageModelContainer.makePreview()
+        let context = container.mainContext
+        let book = Book(title: "채식주의자", totalPageCount: 200)
+        context.insert(book)
+        finished(book: book, start: 1, end: 200, duration: 3600, endDate: .now, in: context)
+
+        let pass = PassPresentation(book: book)
+        #expect(pass.progressPercent == 100)
+        #expect(pass.isFinished == false)
+    }
+
+    // MARK: 색
+
     @Test func coverSwatchDarkInkOnLightWarmColor() {
         // 밝은 웜 색 → 정규화해도 고휘도 → 어두운 잉크(프로토타입 톤).
         #expect(PassagePalette.coverSwatch(hex: 0xE0A040).ink == Color(hex: 0x26241F))

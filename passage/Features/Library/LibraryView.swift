@@ -23,8 +23,6 @@ struct LibraryView: View {
     @State private var front = 0                 // 펼친 패스(0 = 가장 최근)
     @State private var libraryFilter: LibraryFilter = .all
     @State private var bookPendingDelete: Book?
-    @State private var bookPendingPageCount: Book?
-    @State private var pageCountText = ""
 
     var body: some View {
         NavigationStack {
@@ -48,14 +46,6 @@ struct LibraryView: View {
                 confirmTitle: "삭제하기",
                 onConfirm: { performDelete($0) }
             )
-            .alert("전체 페이지 수", isPresented: pageCountDialogBinding) {
-                TextField("예: 320", text: $pageCountText)
-                    .keyboardType(.numberPad)
-                Button("저장") { savePageCount() }
-                Button("취소", role: .cancel) { bookPendingPageCount = nil }
-            } message: {
-                Text("전체 페이지 수를 입력하면 독서 진행률(바코드)이 보여요.")
-            }
         }
         .onChange(of: books.count) { _, _ in
             front = min(front, max(0, books.count - 1))
@@ -81,7 +71,8 @@ struct LibraryView: View {
                 onStartSession: { startSession(at: $0) },
                 onViewJourney: { viewJourney(at: $0) },
                 onDelete: { askDelete(at: $0) },
-                onSetPageCount: { promptPageCount(at: $0) }
+                onToggleFinished: { toggleFinished(at: $0) },
+                onCommitPageCount: { setPageCount($1, at: $0) }
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
@@ -121,13 +112,14 @@ struct LibraryView: View {
     private var filterMenu: some View {
         Menu {
             ForEach(LibraryFilter.allCases) { option in
+                let title = "\(option.label) \(books.filter(option.matches).count)"   // 목업: 라벨 옆 권수
                 Button {
                     libraryFilter = option
                 } label: {
                     if libraryFilter == option {
-                        Label(option.label, systemImage: "checkmark")
+                        Label(title, systemImage: "checkmark")
                     } else {
-                        Text(option.label)
+                        Text(title)
                     }
                 }
             }
@@ -198,26 +190,21 @@ struct LibraryView: View {
         front = 0
     }
 
-    private func promptPageCount(at index: Int) {
+    /// 카드 인라인 입력에서 확정한 전체 페이지 수를 반영한다. 상한 판정은 PageRules가 최종 권위.
+    private func setPageCount(_ total: Int, at index: Int) {
         guard filteredBooks.indices.contains(index) else { return }
         let book = filteredBooks[index]
-        pageCountText = book.totalPageCount.map(String.init) ?? ""
-        bookPendingPageCount = book
-    }
-
-    private func savePageCount() {
-        guard let book = bookPendingPageCount else { return }
-        book.totalPageCount = PageRules.normalizedTotal(Int(pageCountText.filter(\.isNumber)))
+        book.totalPageCount = PageRules.normalizedTotal(total)
         ReadingSession.normalizePages(of: book)   // 상한을 낮췄으면 기존 기록도 따라 내려온다
         try? modelContext.save()
-        bookPendingPageCount = nil
     }
 
-    private var pageCountDialogBinding: Binding<Bool> {
-        Binding(
-            get: { bookPendingPageCount != nil },
-            set: { if !$0 { bookPendingPageCount = nil } }
-        )
+    /// 완독 ↔ 읽는 중 전환(카드 ⋮ 메뉴). 서재·독서여정 두 필터가 모두 이 값을 본다.
+    private func toggleFinished(at index: Int) {
+        guard filteredBooks.indices.contains(index) else { return }
+        let book = filteredBooks[index]
+        book.finishedDate = book.isFinished ? nil : .now
+        try? modelContext.save()
     }
 }
 

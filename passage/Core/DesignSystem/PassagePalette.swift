@@ -96,7 +96,10 @@ enum PassagePalette {
     /// 전부 고정 hex Color(라이트/다크 동일) — 동적 프로바이더 미사용(off-main 트랩 없음).
     nonisolated static func coverSwatch(hex: UInt32) -> Swatch {
         var hsb = PassageColorMath.hsb(fromHex: hex)
-        hsb.s = min(hsb.s, 0.52)                          // 채도 상한(과채도 완화)
+        // 채도 상한 — 기획 v2가 요구한 "더 선명한 태그색"을 0.52→0.66으로 절반만 수용한다.
+        // 기획서 원안(채도 2.1배 부스트)은 명도를 고정하지 않아 책마다 톤이 갈리고 대비가 무너진다.
+        // 명도 밴드와 휘도 기반 잉크 선택은 그대로 두므로, 원래 진한 표지만 선명해지고 톤은 유지된다. (→ #27)
+        hsb.s = min(hsb.s, 0.66)
         hsb.b = min(max(hsb.b, 0.60), 0.74)               // 명도 밴드(가독 + 너무 밝지 않게)
         let base = PassageColorMath.hex(fromHSB: hsb)
 

@@ -30,7 +30,8 @@ struct PassStackView: View {
     let onStartSession: (Int) -> Void
     let onViewJourney: (Int) -> Void
     let onDelete: (Int) -> Void
-    let onSetPageCount: (Int) -> Void
+    let onToggleFinished: (Int) -> Void
+    let onCommitPageCount: (Int, Int) -> Void   // (카드 인덱스, 전체 페이지 수)
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -49,7 +50,8 @@ struct PassStackView: View {
                         onStartSession: { onStartSession(index) },
                         onViewJourney: { onViewJourney(index) },
                         onDelete: { onDelete(index) },
-                        onSetPageCount: { onSetPageCount(index) }
+                        onToggleFinished: { onToggleFinished(index) },
+                        onCommitPageCount: { onCommitPageCount(index, $0) }
                     )
                     .offset(y: topOffset(for: index, front: front, height: height))
                     // zIndex는 원래 보간이 안 돼(순간 전환) 카드가 겹칠 때 draw order가 툭 바뀐다.
