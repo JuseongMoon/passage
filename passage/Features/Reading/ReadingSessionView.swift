@@ -5,7 +5,8 @@
 //  독서 세션 오버레이. 준비(ready) → 진행/일시정지(running/paused) → 종료(ended)를 한 화면에서 흐른다.
 //  세 단계가 같은 "보딩 스텁" 레이아웃을 공유한다 — 상단에 책 표지 히어로, 그 아래 책 색(swatch.base)
 //  섹션에 제목·저자와 label·value 행(독서 시간·시작/끝 페이지·장소)을 얹고, 하단에 CTA를 둔다.
-//  종료 후 저장하면 기존 "어디서 읽으셨나요?" 장소 화면으로 이어진다. (Passage Home v2 목업)
+//  종료 화면은 페이지 → 장소(주소·지도·태그) → 생각 순으로 쌓고 그 자리에서 저장한다 —
+//  별도 장소 화면으로 넘기지 않는다(b95eaa4에서 제거).
 //
 
 import SwiftUI
@@ -36,7 +37,9 @@ struct ReadingSessionView: View {
     private enum Field { case total, place, note, address }
 
     /// 표지 히어로 높이(상태바 밑까지 확장 포함).
-    private let heroHeight: CGFloat = 300
+    /// 종료 화면이 장소·지도·사진·생각까지 담게 되면서 300 → 170으로 줄였다 —
+    /// 표지의 존재감은 남기되 아래 입력이 한 화면에 들어오도록. (→ DECISIONS 기획 v2 2차)
+    private let heroHeight: CGFloat = 170
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
@@ -223,8 +226,8 @@ struct ReadingSessionView: View {
                     } else {
                         totalPageRow
                     }
-                    noteSection
                     placeSection
+                    noteSection
                 }
                 primaryPill("저장하기") { saveEnded() }
                     .padding(.top, Theme.Spacing.xs)
@@ -271,21 +274,27 @@ struct ReadingSessionView: View {
     }
 
     /// 세션 직후 감상 한 줄(Memory over Productivity — 기록의 깊이). 선택 입력, 비면 저장 안 함.
+    /// 장소 태그와 같은 한 줄 행(라벨 좌 · 입력 우) — 종료 화면의 선택 입력들이 같은 리듬으로 읽힌다.
+    /// 길게 쓰면 4줄까지 늘어나므로 라벨은 위에 붙여 둔다.
     private var noteSection: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-            Text("생각")
-                .font(.system(size: 19, weight: .medium))
+            HStack(alignment: .top, spacing: Theme.Spacing.xs) {
+                Text("생각")
+                    .font(.system(size: 16))
+                    .foregroundStyle(swatch.ink)
+                Spacer(minLength: Theme.Spacing.sm)
+                TextField(
+                    "",
+                    text: $noteText,
+                    prompt: Text("추가하기").foregroundStyle(swatch.dim),
+                    axis: .vertical
+                )
+                .focused($focusedField, equals: .note)
+                .multilineTextAlignment(.trailing)
+                .font(.system(size: 16))
                 .foregroundStyle(swatch.ink)
-            TextField(
-                "",
-                text: $noteText,
-                prompt: Text("오늘 읽으며 남은 생각 (선택)").foregroundStyle(swatch.dim),
-                axis: .vertical
-            )
-            .focused($focusedField, equals: .note)
-            .font(.system(size: 16))
-            .foregroundStyle(swatch.ink)
-            .lineLimit(1...4)
+                .lineLimit(1...4)
+            }
             rowDivider
         }
     }
@@ -590,7 +599,7 @@ struct ReadingSessionView: View {
     }
 }
 
-/// 표지 히어로 — 풀블리드로 표지를 폭에 맞춰 채우고, 넘치는 세로 영역을 위→아래로 1분 주기로
+/// 표지 히어로 — 풀블리드로 표지를 폭에 맞춰 채우고, 넘치는 세로 영역을 위→아래로
 /// 천천히 왕복(순환)하며 보여준다(정지된 가운데 크롭 대신 살아 움직이는 히어로). 로드 전/실패/
 /// 표지 없음이면 cover→base 그라데이션으로 아래 색 섹션에 자연스럽게 이어지게 한다.
 /// 종횡비(오버플로)를 알아야 팬 범위가 정확하므로 AsyncImage 대신 UIImage로 직접 로드한다.
@@ -603,13 +612,17 @@ private struct BookCoverHero: View {
     @State private var image: UIImage?
     @State private var didFail = false
 
-    // 위→아래 한 방향 60초: 앞 panRamp초 가속 · 가운데 panCruise초 등속 · 끝 panRamp초 감속.
+    // 위→아래 한 방향: 앞 ramp초 가속 · 가운데 cruise초 등속 · 끝 ramp초 감속.
     // 양 끝(맨 위·맨 아래)에서 속도가 0이라 방향 전환이 튀지 않고 베지어처럼 부드럽게 뒤집힌다.
-    private static let panRamp: Double = 5                     // 앞/뒤 이징 구간(초)
-    private static let panCruise: Double = 50                  // 가운데 등속 구간(초)
-    private static let panSpeed = 1.0 / (panRamp + panCruise)  // 등속 속도(pan/초)
-    private static let panV1 = 0.5 * panSpeed * panRamp        // 가속이 끝나는 지점(= 감속 시작의 대칭점)
-    private static let panV2 = 1.0 - panV1
+    //
+    // 주행 시간을 상수로 두면(옛 60초) 히어로가 낮아질수록 오버플로가 커져 팬이 빨라진다 —
+    // 창만 줄고 렌더 높이는 그대로이기 때문(scale은 폭 기준). 히어로를 300→170으로 줄였을 때
+    // 실제로 1.45배 빨라졌다. 그래서 **속도(pt/초)를 고정하고 주행 시간을 오버플로에서 역산**한다.
+    // 기준값은 옛 300pt 히어로 · 표준 2:3 표지에서 나오던 체감 속도다(289pt ÷ 60초 ≈ 4.8).
+    // 이제 히어로 높이나 표지 비율이 달라져도 흐르는 속도는 같다.
+    private static let panPointsPerSecond: Double = 4.8
+    private static let panRampRatio: Double = 5.0 / 60.0       // 주행 시간 중 이징 구간이 차지하는 비율
+    private static let panMinDuration: Double = 8               // 오버플로가 아주 작아도 이보다 빨리 훑지 않는다
 
     private var fallback: some View {
         LinearGradient(colors: [top, bottom], startPoint: .top, endPoint: .bottom)
@@ -642,6 +655,16 @@ private struct BookCoverHero: View {
         let renderedH = imgH * scale
         let overflowY = max(0, renderedH - size.height)
         let insetX = (renderedW - size.width) / 2
+
+        // 흐르는 속도를 일정하게 유지하려고 주행 시간을 오버플로에서 역산한다(= 거리 ÷ 속도).
+        // pan은 0…1 정규화 값이라, 실제 이동 거리(overflowY)가 커질수록 시간도 그만큼 길어진다.
+        let travel = max(Self.panMinDuration, Double(overflowY) / Self.panPointsPerSecond)
+        let ramp = travel * Self.panRampRatio     // 앞/뒤 이징 구간(초)
+        let cruise = travel - ramp * 2           // 가운데 등속 구간(초)
+        let speed = 1.0 / (ramp + cruise)        // 등속 속도(pan/초) — 전체 이동이 정확히 1이 되는 값
+        let v1 = 0.5 * speed * ramp              // 가속이 끝나는 지점(= 감속 시작의 대칭점)
+        let v2 = 1.0 - v1
+
         let base = Image(uiImage: uiImage)
             .resizable()
             .frame(width: renderedW, height: renderedH)
@@ -652,13 +675,13 @@ private struct BookCoverHero: View {
                 } keyframes: { _ in
                     KeyframeTrack(\.self) {
                         // 위→아래: 가속(끝속도 = 등속) → 등속 → 감속(끝속도 0, 맨 아래에서 정지)
-                        CubicKeyframe(Self.panV1, duration: Self.panRamp, startVelocity: 0, endVelocity: Self.panSpeed)
-                        LinearKeyframe(Self.panV2, duration: Self.panCruise)
-                        CubicKeyframe(1.0, duration: Self.panRamp, startVelocity: Self.panSpeed, endVelocity: 0)
+                        CubicKeyframe(v1, duration: ramp, startVelocity: 0, endVelocity: speed)
+                        LinearKeyframe(v2, duration: cruise)
+                        CubicKeyframe(1.0, duration: ramp, startVelocity: speed, endVelocity: 0)
                         // 아래→위: 대칭. 시작·끝 속도 0이라 양 끝 방향 전환이 매끄럽고 루프 이음새도 연속.
-                        CubicKeyframe(Self.panV2, duration: Self.panRamp, startVelocity: 0, endVelocity: -Self.panSpeed)
-                        LinearKeyframe(Self.panV1, duration: Self.panCruise)
-                        CubicKeyframe(0.0, duration: Self.panRamp, startVelocity: -Self.panSpeed, endVelocity: 0)
+                        CubicKeyframe(v2, duration: ramp, startVelocity: 0, endVelocity: -speed)
+                        LinearKeyframe(v1, duration: cruise)
+                        CubicKeyframe(0.0, duration: ramp, startVelocity: -speed, endVelocity: 0)
                     }
                 }
             } else {
