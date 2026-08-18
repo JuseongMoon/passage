@@ -8,6 +8,7 @@
 
 import SwiftUI
 import SwiftData
+import PhotosUI
 
 struct MemoryDetailView: View {
     let session: ReadingSession
@@ -16,6 +17,8 @@ struct MemoryDetailView: View {
     @State private var editingNote = false
     @State private var changingPlace = false
     @State private var sessionPendingDelete: ReadingSession?
+    @State private var photoItem: PhotosPickerItem?
+    @State private var photoPendingDelete: SessionPhoto?
 
     var body: some View {
         ZStack {
@@ -52,6 +55,16 @@ struct MemoryDetailView: View {
             message: "이 세션의 시간·페이지·생각·사진이 함께 사라지며, 되돌릴 수 없어요.",
             confirmTitle: "삭제하기",
             onConfirm: { deleteSession($0) }
+        )
+        .onChange(of: photoItem) { _, newItem in
+            Task { await addPhoto(from: newItem) }
+        }
+        .passageConfirmModal(
+            item: $photoPendingDelete,
+            title: { _ in "이 사진을 삭제할까요?" },
+            message: "이 기억에서 사진이 사라지며, 되돌릴 수 없어요.",
+            confirmTitle: "삭제하기",
+            onConfirm: { deletePhoto($0) }
         )
         .sheet(isPresented: $editingNote) {
             NoteEditorView(session: session)
@@ -131,24 +144,36 @@ struct MemoryDetailView: View {
     // MARK: 사진
 
     /// 이 세션에서 남긴 사진. 소유자가 세션 하나뿐이라 출처를 나눌 필요가 없다. (→ DECISIONS #27)
-    @ViewBuilder private var photoSection: some View {
-        if let photos = session.photos, !photos.isEmpty {
-            Section {
+    /// 사진 입력은 세션 종료 화면 한 곳뿐이라 그 순간을 놓치면 영영 못 붙였다.
+    /// 생각·장소가 나중에 편집되듯 사진도 여기서 더하고 지운다(섹션을 항상 띄워 진입점을 남긴다).
+    private var photoSection: some View {
+        Section {
+            if let photos = session.photos, !photos.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: Theme.Spacing.xs) {
                         ForEach(photos.sorted { $0.dateAdded < $1.dateAdded }) { photo in
                             PhotoThumbnail(data: photo.data)
                                 .frame(width: 140, height: 140)
                                 .clipShape(.rect(cornerRadius: Theme.Radius.md, style: .continuous))
+                                .contextMenu {
+                                    Button(role: .destructive) { photoPendingDelete = photo } label: {
+                                        Label("사진 삭제", systemImage: "trash")
+                                    }
+                                }
+                                .accessibilityLabel("이 세션의 사진")
                         }
                     }
                     .padding(.vertical, Theme.Spacing.xxs)
                 }
-            } header: {
-                sectionHeader("사진")
             }
-            .listRowBackground(PassagePalette.cardBody)
+            PhotosPicker(selection: $photoItem, matching: .images) {
+                Label("사진 추가", systemImage: "photo")
+                    .foregroundStyle(PassagePalette.warmAccent)
+            }
+        } header: {
+            sectionHeader("사진")
         }
+        .listRowBackground(PassagePalette.cardBody)
     }
 
     // MARK: 장소
@@ -187,6 +212,19 @@ struct MemoryDetailView: View {
     }
 
     // MARK: 동작
+
+    /// 고른 사진을 이 세션에 붙인다(세션 종료 화면과 같은 SessionPhoto 경로).
+    private func addPhoto(from item: PhotosPickerItem?) async {
+        guard let item, let data = try? await item.loadTransferable(type: Data.self) else { return }
+        modelContext.insert(SessionPhoto(data: data, session: session))
+        try? modelContext.save()
+        photoItem = nil
+    }
+
+    private func deletePhoto(_ photo: SessionPhoto) {
+        modelContext.delete(photo)
+        try? modelContext.save()
+    }
 
     /// 기억 하나를 지운다. 사진은 cascade로 함께 사라지고, 장소는 nullify라 남는다.
     private func deleteSession(_ session: ReadingSession) {

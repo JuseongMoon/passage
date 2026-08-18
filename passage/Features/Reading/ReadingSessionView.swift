@@ -35,6 +35,7 @@ struct ReadingSessionView: View {
     @State private var locationAutofilled = false
     @State private var didAutofill = false
     @State private var didPrefillStartPage = false
+    @State private var confirmingDiscard = false
     @FocusState private var focusedField: Field?
 
     private enum Field { case total, place, note, address }
@@ -74,6 +75,15 @@ struct ReadingSessionView: View {
         }
         .onAppear(perform: prefillStartPage)
         .interactiveDismissDisabled()
+        // 종료 화면의 입력은 '저장하기'에서만 반영된다 — ✕로 닫으면 조용히 사라지므로
+        // 쓴 게 있을 때만 한 번 되묻는다(빈 화면이면 지금처럼 바로 닫혀 마찰이 없다).
+        .passageConfirmModal(
+            item: discardConfirmBinding,
+            title: { _ in "저장하지 않고 닫을까요?" },
+            message: "이번 세션에 적은 페이지·생각·사진·장소가 저장되지 않아요.",
+            confirmTitle: "닫기",
+            onConfirm: { _ in controller.cancelReading() }
+        )
     }
 
     // MARK: 표지 히어로
@@ -83,7 +93,7 @@ struct ReadingSessionView: View {
     }
 
     private var closeButton: some View {
-        Button { controller.cancelReading() } label: {
+        Button { requestClose() } label: {
             Image(systemName: "xmark")
                 .font(.system(size: 12, weight: .bold))
                 .foregroundStyle(.white)
@@ -496,6 +506,35 @@ struct ReadingSessionView: View {
 
     // MARK: 파생값
 
+    /// ✕ 처리 — 종료 화면에서 뭔가 적었다면 확인부터, 아니면 바로 닫는다.
+    private func requestClose() {
+        if controller.phase == .ended, hasUnsavedEndedInput {
+            confirmingDiscard = true
+        } else {
+            controller.cancelReading()
+        }
+    }
+
+    /// 저장을 눌러야만 반영되는 입력이 하나라도 있는가.
+    /// 페이지는 자동 채움 값과 달라졌을 때만 '적은 것'으로 본다.
+    private var hasUnsavedEndedInput: Bool {
+        let base = controller.endedSession?.startPage ?? startPage
+        if !noteText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return true }
+        if !placeText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return true }
+        if photoData != nil { return true }
+        if !addressText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, !locationAutofilled { return true }
+        if endPage != base { return true }
+        return false
+    }
+
+    /// ConfirmModal은 item 기반이라 Bool을 Identifiable 아이템으로 감싼다.
+    private var discardConfirmBinding: Binding<DiscardConfirm?> {
+        Binding(
+            get: { confirmingDiscard ? DiscardConfirm() : nil },
+            set: { confirmingDiscard = ($0 != nil) }
+        )
+    }
+
     private var currentBook: Book? {
         controller.pendingBook ?? controller.activeSession?.book ?? controller.endedSession?.book
     }
@@ -636,6 +675,11 @@ struct ReadingSessionView: View {
             // 권한 없음/실패 → 조용히 무시(직접 입력 가능)
         }
     }
+}
+
+/// `passageConfirmModal`(item 기반)에 Bool 상태를 실어 보내기 위한 최소 아이템.
+private struct DiscardConfirm: Identifiable {
+    let id = UUID()
 }
 
 /// 표지 히어로 — 풀블리드로 표지를 폭에 맞춰 채우고, 넘치는 세로 영역을 위→아래로
