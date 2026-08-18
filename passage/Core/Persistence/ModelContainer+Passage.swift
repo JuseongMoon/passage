@@ -22,7 +22,7 @@ enum PassageModelContainer {
     private static let logger = Logger(subsystem: "com.ScienceFiction.passage", category: "Persistence")
 
     private static var models: [any PersistentModel.Type] {
-        [Book.self, ReadingSession.self, Place.self, Quote.self, PlacePhoto.self]
+        [Book.self, ReadingSession.self, Place.self, Quote.self, SessionPhoto.self]
     }
 
     /// 앱 기본 컨테이너.

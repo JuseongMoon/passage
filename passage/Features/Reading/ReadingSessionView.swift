@@ -12,6 +12,7 @@
 import SwiftUI
 import SwiftData
 import CoreLocation
+import PhotosUI
 import UIKit
 
 struct ReadingSessionView: View {
@@ -24,6 +25,8 @@ struct ReadingSessionView: View {
     @State private var totalPageText = ""            // 전체 페이지 수를 모를 때만 쓰는 입력
     @State private var placeText = ""
     @State private var noteText = ""
+    @State private var photoItem: PhotosPickerItem?
+    @State private var photoData: Data?
     @State private var addressText = ""                       // 장소 = 현재 위치 주소(수정·검색 가능)
     @State private var searchResults: [PlaceSearchResult] = []
     @State private var isSearching = false
@@ -227,6 +230,7 @@ struct ReadingSessionView: View {
                         totalPageRow
                     }
                     placeSection
+                    photoSection
                     noteSection
                 }
                 primaryPill("저장하기") { saveEnded() }
@@ -270,6 +274,40 @@ struct ReadingSessionView: View {
                 .font(.system(size: 12))
                 .foregroundStyle(swatch.dim)
                 .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// 그날 그 자리의 사진 한 장(선택). 장소 태그·생각과 같은 한 줄 행이고, 고르면 아래에 미리보기가 남는다.
+    /// 사진은 장소가 아니라 이 세션에 붙는다 — 같은 카페에서 읽은 다른 날과 섞이지 않는다. (→ DECISIONS #27)
+    private var photoSection: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            PhotosPicker(selection: $photoItem, matching: .images) {
+                HStack(spacing: Theme.Spacing.xs) {
+                    Text("사진")
+                        .font(.system(size: 16))
+                        .foregroundStyle(swatch.ink)
+                    Spacer(minLength: Theme.Spacing.sm)
+                    Text(photoData == nil ? "추가하기" : "변경하기")
+                        .font(.system(size: 16))
+                        .foregroundStyle(photoData == nil ? swatch.dim : swatch.ink)
+                }
+                .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            if let photoData, let image = UIImage(data: photoData) {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(height: 160)
+                    .frame(maxWidth: .infinity)
+                    .clipped()
+                    .clipShape(.rect(cornerRadius: Theme.Radius.md, style: .continuous))
+                    .accessibilityLabel("이 세션에 남긴 사진")
+            }
+            rowDivider
+        }
+        .onChange(of: photoItem) { _, newItem in
+            Task { photoData = try? await newItem?.loadTransferable(type: Data.self) }
         }
     }
 
@@ -533,6 +571,7 @@ struct ReadingSessionView: View {
             startPage: hasPages ? startPage : nil,
             endPage: hasPages ? endPage : nil,
             note: noteText,
+            photoData: photoData,
             placeName: resolvedPlaceName,
             latitude: placeCoord?.latitude,
             longitude: placeCoord?.longitude,

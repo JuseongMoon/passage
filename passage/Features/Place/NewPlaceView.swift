@@ -2,14 +2,13 @@
 //  NewPlaceView.swift
 //  passage
 //
-//  새 장소 생성. 장소 검색(POI) · 지도 지점/현재 위치 · 주소 자동(reverse-geocode) · 사진(선택).
-//  사진은 PlacePhoto(externalStorage)로 저장 → CloudKit 자동 동기화.
+//  새 장소 생성. 장소 검색(POI) · 지도 지점/현재 위치 · 주소 자동(reverse-geocode).
+//  사진은 여기서 받지 않는다 — 세션 종료 화면에서 그 세션의 사진으로 남긴다(→ SessionPhoto, DECISIONS #27).
 //
 
 import SwiftUI
 import SwiftData
-import PhotosUI
-import UIKit
+import CoreLocation   // CLLocationCoordinate2D — 예전엔 UIKit을 통해 딸려왔지만 이제 직접 쓴다
 
 struct NewPlaceView: View {
     @Environment(ReadingSessionController.self) private var controller
@@ -21,8 +20,6 @@ struct NewPlaceView: View {
     @State private var name = ""
     @State private var address = ""
     @State private var selectedPoint: MapPoint?
-    @State private var photoItem: PhotosPickerItem?
-    @State private var photoData: Data?
     @State private var isSaving = false
     @State private var isLocating = false
     @State private var isGeocoding = false
@@ -109,22 +106,6 @@ struct NewPlaceView: View {
                          ? "지도를 눌러 지점을 고르거나 현재 위치를 사용하세요. 위치는 꼭 필요해요."
                          : "지도를 눌러 지점을 바꿀 수 있어요.")
                 }
-
-                Section("사진 (선택)") {
-                    PhotosPicker(selection: $photoItem, matching: .images) {
-                        Label("사진 추가", systemImage: "photo")
-                    }
-                    if let photoData, let image = UIImage(data: photoData) {
-                        Image(uiImage: image)
-                            .resizable()
-                            .scaledToFill()
-                            .frame(height: 160)
-                            .frame(maxWidth: .infinity)
-                            .clipped()
-                            .listRowInsets(EdgeInsets())
-                            .accessibilityLabel("선택한 사진")
-                    }
-                }
             }
             .navigationTitle("새 장소")
             .navigationBarTitleDisplayMode(.inline)
@@ -143,9 +124,6 @@ struct NewPlaceView: View {
                     return
                 }
                 reverseGeocode(newValue)
-            }
-            .onChange(of: photoItem) { _, newItem in
-                Task { photoData = try? await newItem?.loadTransferable(type: Data.self) }
             }
         }
     }
@@ -200,10 +178,6 @@ struct NewPlaceView: View {
             address: address.isEmpty ? nil : address
         )
         modelContext.insert(place)
-        // 사진은 externalStorage 모델로 저장 → CloudKit 자동 동기화.
-        if let photoData {
-            modelContext.insert(PlacePhoto(data: photoData, place: place))
-        }
         controller.assignPlace(place, to: session)
         dismiss()
     }

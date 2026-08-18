@@ -2,7 +2,8 @@
 //  Place.swift
 //  passage
 //
-//  독서한 장소. 이름은 필수, 위치·주소·사진은 선택.
+//  독서한 장소. 이름은 필수, 위치·주소는 선택.
+//  사진은 장소가 아니라 세션이 갖는다(→ SessionPhoto, DECISIONS #27).
 //  기존 장소를 재사용하거나 새로 만든다.
 //
 
@@ -22,10 +23,6 @@ nonisolated final class Place {
     // 장소 삭제 시 세션의 place만 nullify(기억은 남고 장소만 사라짐).
     @Relationship(deleteRule: .nullify, inverse: \ReadingSession.place)
     var sessions: [ReadingSession]? = []
-
-    // 사진은 externalStorage(→ CloudKit CKAsset 자동 동기화). 장소 삭제 시 함께 삭제.
-    @Relationship(deleteRule: .cascade, inverse: \PlacePhoto.place)
-    var photos: [PlacePhoto]? = []
 
     init(name: String = "", latitude: Double? = nil, longitude: Double? = nil, address: String? = nil) {
         self.name = name

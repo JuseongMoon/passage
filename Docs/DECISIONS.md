@@ -254,4 +254,15 @@
 - **상태**: 🔵 1단계 완료(빌드 그린 · `passageTests` 전체 통과). **레이아웃 렌더는 사용자가 Xcode 프리뷰로 직접 확인 예정.** 2~4단계는 착수 전.
 
 ---
-*새 결정은 아래에 #28부터 이어서 기록한다.*
+### #28 — 사진 소유를 장소에서 세션으로 단일화 ✅
+- **문제**: 사진이 `PlacePhoto → Place`에 붙어 있어 **같은 장소에서 읽은 모든 세션이 사진 묶음을 공유**했다. "그날 그 자리"가 아니라 "그 장소"의 사진이라 기억의 단위(#2 Session is Source of Truth)와 어긋난다. 게다가 종료 장소 화면 제거(`b95eaa4`) 이후 사진을 만들 수 있는 경로가 `MemoryDetailView → 위치 변경 → NewPlaceView`뿐이라 사실상 묻혀 있었다.
+- **결정**: `PlacePhoto`를 **`SessionPhoto`로 교체**하고 소유자를 `session`으로 옮긴다. `Place.photos`와 `NewPlaceView`의 사진 피커는 제거하고, 사진은 **세션 종료 화면에서만** 받는다(장소 태그·생각과 같은 한 줄 행 + 미리보기). 기획 v2가 요구한 "사진" 행을 이 모델 위에 얹은 것이다(→ #27 결정 3).
+  - 처음에는 `PlacePhoto`에 `session` 관계만 덧붙이는 additive 안을 고려했으나, **두 소유자가 공존하면 사진의 소속이 영구히 모호**해지고 기억 상세도 두 섹션을 떠안는다. 데이터 보존을 포기하기로 한 정책(#26) 덕에 깨끗한 교체를 택할 수 있었다.
+- **구현**: `SessionPhoto`(externalStorage → CloudKit CKAsset 유지) · `ReadingSession.photos` cascade inverse · `finishEndedInline(photoData:)` · `ReadingSessionView.photoSection`(PhotosPicker) · `MemoryDetailView`의 사진을 장소 섹션에서 독립 섹션으로 분리 · `ModelContainer` models 갱신.
+  - `NewPlaceView`에서 `import UIKit`을 지우자 그것을 통해 딸려오던 `CoreLocation`이 끊겨 빌드가 깨졌다 → `import CoreLocation`을 명시했다.
+- **마이그레이션 실측**: 엔티티 교체(비-additive)인데도 **빈 스토어에서는 `#26` 폴백 없이 lightweight로 통과**했다 — `ZPLACEPHOTO` 테이블이 사라지고 `ZSESSIONPHOTO`가 생겼다. **다만 데이터가 있는 구 스키마 스토어에서의 경로는 검증하지 못했다**(시뮬레이터에서 책 검색 API가 실패해 데이터를 만들 수단이 없었다). 실패하더라도 #26이 받아내므로 앱이 켜지지 않는 상황은 없다. → **"기록이 전부 초기화된다"는 단정은 과했고, 실제로는 유지될 가능성이 있다.** 테스터 배포 전 실기기에서 한 번 확인할 것.
+- **트레이드오프**: 장소에 남아 있던 기존 사진은 버린다(실측상 0건이었다). 장소 자체의 사진(간판·전경 등)을 남기고 싶어지면 그때 `PlacePhoto`를 되살리되 세션 사진과 별개 개념으로 둔다.
+- **상태**: ✅ 빌드 그린 · `passageTests` 전체 통과(사진 테스트 2종으로 교체 — 세션 cascade + "같은 장소를 공유해도 사진은 각 세션에") · 시뮬레이터 실행에서 종료 화면 렌더 확인(페이지 → 장소 → 지도 → 장소 태그 → 사진).
+
+---
+*새 결정은 아래에 #29부터 이어서 기록한다.*

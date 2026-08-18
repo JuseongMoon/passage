@@ -24,6 +24,10 @@ nonisolated final class ReadingSession {
     var book: Book?
     var place: Place?
 
+    // 이 세션에서 남긴 사진. externalStorage(→ CloudKit CKAsset 자동 동기화). 세션 삭제 시 함께 삭제.
+    @Relationship(deleteRule: .cascade, inverse: \SessionPhoto.session)
+    var photos: [SessionPhoto]? = []
+
     /// 진행 중 여부(파생값, 미저장).
     var isActive: Bool { endDate == nil }
 

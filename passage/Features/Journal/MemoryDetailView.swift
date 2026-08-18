@@ -23,6 +23,7 @@ struct MemoryDetailView: View {
                 recordSection
                 thoughtSection
                 placeSection
+                photoSection
             }
             .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)   // 시스템 리스트 배경 숨김 → appBg 노출
@@ -106,6 +107,29 @@ struct MemoryDetailView: View {
         .listRowBackground(PassagePalette.cardBody)
     }
 
+    // MARK: 사진
+
+    /// 이 세션에서 남긴 사진. 소유자가 세션 하나뿐이라 출처를 나눌 필요가 없다. (→ DECISIONS #27)
+    @ViewBuilder private var photoSection: some View {
+        if let photos = session.photos, !photos.isEmpty {
+            Section {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: Theme.Spacing.xs) {
+                        ForEach(photos.sorted { $0.dateAdded < $1.dateAdded }) { photo in
+                            PhotoThumbnail(data: photo.data)
+                                .frame(width: 140, height: 140)
+                                .clipShape(.rect(cornerRadius: Theme.Radius.md, style: .continuous))
+                        }
+                    }
+                    .padding(.vertical, Theme.Spacing.xxs)
+                }
+            } header: {
+                sectionHeader("사진")
+            }
+            .listRowBackground(PassagePalette.cardBody)
+        }
+    }
+
     // MARK: 장소
 
     @ViewBuilder private var placeSection: some View {
@@ -122,18 +146,6 @@ struct MemoryDetailView: View {
                                 .font(.footnote)
                                 .foregroundStyle(PassagePalette.inkMuted)
                         }
-                    }
-                }
-                if let photos = place.photos, !photos.isEmpty {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: Theme.Spacing.xs) {
-                            ForEach(photos.sorted { $0.dateAdded < $1.dateAdded }) { photo in
-                                PhotoThumbnail(data: photo.data)
-                                    .frame(width: 140, height: 140)
-                                    .clipShape(.rect(cornerRadius: Theme.Radius.md, style: .continuous))
-                            }
-                        }
-                        .padding(.vertical, Theme.Spacing.xxs)
                     }
                 }
                 Button("위치 변경") { changingPlace = true }

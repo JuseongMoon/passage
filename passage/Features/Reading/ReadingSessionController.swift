@@ -129,12 +129,13 @@ final class ReadingSessionController {
         endedSession = session
     }
 
-    /// ended 단계 저장(인라인): 페이지 + 인라인 장소를 바로 반영하고 종료(별도 장소 화면 없음).
-    /// placeName이 비면 장소 없이 저장(장소는 선택).
+    /// ended 단계 저장(인라인): 페이지 · 생각 · 사진 · 인라인 장소를 바로 반영하고 종료(별도 장소 화면 없음).
+    /// placeName이 비면 장소 없이 저장(장소는 선택). photoData가 있으면 그 세션의 사진으로 붙인다.
     func finishEndedInline(
         startPage: Int?,
         endPage: Int?,
         note: String? = nil,
+        photoData: Data? = nil,
         placeName: String?,
         latitude: Double? = nil,
         longitude: Double? = nil,
@@ -146,6 +147,10 @@ final class ReadingSessionController {
         session.startPage = pages.start
         session.endPage = pages.end
         session.note = Self.trimmedNote(note)
+        // 사진은 세션이 갖는다 — externalStorage 모델이라 CloudKit이 CKAsset으로 실어 나른다.
+        if let photoData {
+            modelContext.insert(SessionPhoto(data: photoData, session: session))
+        }
         let name = (placeName ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         if !name.isEmpty {
             let place = Place(name: name, latitude: latitude, longitude: longitude, address: address)
