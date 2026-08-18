@@ -165,14 +165,18 @@ struct JournalView: View {
             } else {
                 filterBar(all: all)
                     .padding(.bottom, Theme.Spacing.sm)
-                ScrollView(.horizontal, showsIndicators: false) {
-                    LazyHStack(alignment: .top, spacing: Theme.Spacing.md) {
-                        ForEach(filtered) { journey in
-                            journeyCard(journey)
+                if filtered.isEmpty {
+                    filterEmptyState      // 여정은 있는데 이 필터에 걸리는 게 없을 때
+                } else {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        LazyHStack(alignment: .top, spacing: Theme.Spacing.md) {
+                            ForEach(filtered) { journey in
+                                journeyCard(journey)
+                            }
                         }
+                        .padding(.horizontal, Theme.Spacing.md)
+                        .padding(.bottom, Theme.Spacing.md)
                     }
-                    .padding(.horizontal, Theme.Spacing.md)
-                    .padding(.bottom, Theme.Spacing.md)
                 }
             }
         }
@@ -273,7 +277,25 @@ struct JournalView: View {
         .accessibilityAddTraits(selected ? [.isSelected, .isButton] : .isButton)
     }
 
-    // MARK: 여정 카드 (가로 갤러리 — 표지 + 표지색 밑줄 악센트 · 제목 · 총시간)
+    /// 필터 결과가 0건일 때의 안내. 표지가 한 장도 없으면 시트가 텅 빈 채로 남는다.
+    private var filterEmptyState: some View {
+        VStack(spacing: Theme.Spacing.xxs) {
+            Text(filter == .finished ? "아직 완독한 책이 없어요" : "지금 읽는 중인 책이 없어요")
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(PassagePalette.ink)
+            Text(filter == .finished
+                 ? "서재에서 완독으로 표시하면 여기 모여요."
+                 : "모든 책을 완독했어요.")
+                .font(.system(size: 12.5))
+                .foregroundStyle(PassagePalette.inkMuted)
+                .multilineTextAlignment(.center)
+        }
+        .padding(.horizontal, Theme.Spacing.lg)
+        .frame(maxWidth: .infinity, alignment: .top)
+        .padding(.top, Theme.Spacing.md)
+    }
+
+    // MARK: 여정 카드 (가로 갤러리 — 표지만 · 선택 시 잉크 테두리)
 
     private func journeyCard(_ journey: BookJourney) -> some View {
         let isSelected = journey.id == selectedBookID

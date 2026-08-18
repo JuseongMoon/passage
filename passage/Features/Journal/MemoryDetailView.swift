@@ -11,8 +11,11 @@ import SwiftData
 
 struct MemoryDetailView: View {
     let session: ReadingSession
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
     @State private var editingNote = false
     @State private var changingPlace = false
+    @State private var sessionPendingDelete: ReadingSession?
 
     var body: some View {
         ZStack {
@@ -32,6 +35,24 @@ struct MemoryDetailView: View {
         }
         .navigationTitle("기억")
         .navigationBarTitleDisplayMode(.inline)
+        // 잘못 시작해 끝낸 세션을 지울 길이 책 전체 삭제뿐이었다 — 기억 하나만 지운다.
+        // 통계·진행률·지도는 세션에서 파생되므로(#2) 지우면 알아서 물러난다.
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button(role: .destructive) { sessionPendingDelete = session } label: {
+                    Image(systemName: "trash")
+                }
+                .tint(PassagePalette.danger)
+                .accessibilityLabel("이 기억 삭제")
+            }
+        }
+        .passageConfirmModal(
+            item: $sessionPendingDelete,
+            title: { _ in "이 여정 기록을 삭제할까요?" },
+            message: "이 세션의 시간·페이지·생각·사진이 함께 사라지며, 되돌릴 수 없어요.",
+            confirmTitle: "삭제하기",
+            onConfirm: { deleteSession($0) }
+        )
         .sheet(isPresented: $editingNote) {
             NoteEditorView(session: session)
         }
@@ -163,6 +184,15 @@ struct MemoryDetailView: View {
             sectionHeader("장소")
         }
         .listRowBackground(PassagePalette.cardBody)
+    }
+
+    // MARK: 동작
+
+    /// 기억 하나를 지운다. 사진은 cascade로 함께 사라지고, 장소는 nullify라 남는다.
+    private func deleteSession(_ session: ReadingSession) {
+        modelContext.delete(session)
+        try? modelContext.save()
+        dismiss()
     }
 
     // MARK: 헬퍼

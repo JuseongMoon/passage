@@ -178,10 +178,17 @@ struct BookJourneyDetailSheet: View {
             Text("\(index + 1).")
                 .font(.system(size: 14).monospacedDigit())
                 .foregroundStyle(PassagePalette.inkMuted)
-            Text(session.place?.name.isEmpty == false ? session.place!.name : "장소 없음")
-                .font(.system(size: 16))
-                .foregroundStyle(PassagePalette.ink)
-                .lineLimit(1)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(session.place?.name.isEmpty == false ? session.place!.name : "장소 없음")
+                    .font(.system(size: 16))
+                    .foregroundStyle(PassagePalette.ink)
+                    .lineLimit(1)
+                // "언제"는 이 앱의 정의에 들어 있는 축이다 — 순번만으로는 같은 장소 두 번을 구분할 수 없다.
+                Text(Self.dateText(session.startDate))
+                    .font(.system(size: 12))
+                    .foregroundStyle(PassagePalette.inkMuted)
+                    .lineLimit(1)
+            }
             Spacer(minLength: Theme.Spacing.sm)
             Text(session.duration.readableDuration)
                 .font(.system(size: 16).monospacedDigit())
@@ -191,10 +198,20 @@ struct BookJourneyDetailSheet: View {
         .padding(.vertical, Theme.Spacing.sm)
         .contentShape(.rect)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(index + 1)번째 여정, \(session.place?.name ?? "장소 없음"), \(session.duration.readableDuration)")
+        .accessibilityLabel("\(index + 1)번째 여정, \(session.place?.name ?? "장소 없음"), \(Self.dateText(session.startDate)), \(session.duration.readableDuration)")
     }
 
     // MARK: 헬퍼
+
+    /// "9월 20일 (토)" — 서재 카드의 최근 여정기록과 같은 표기.
+    /// DateFormatter(비 Sendable) 대신 캘린더 성분으로 조립한다(→ PassPresentation과 동일 방식).
+    private static func dateText(_ date: Date, calendar: Calendar = .current) -> String {
+        let month = calendar.component(.month, from: date)
+        let day = calendar.component(.day, from: date)
+        let weekday = calendar.component(.weekday, from: date)   // 1 = 일요일
+        let symbols = ["일", "월", "화", "수", "목", "금", "토"]
+        return "\(month)월 \(day)일 (\(symbols[(weekday - 1 + 7) % 7]))"
+    }
 
     private func sectionHeader(_ text: String) -> some View {
         Text(text)

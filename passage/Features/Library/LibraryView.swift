@@ -62,10 +62,14 @@ struct LibraryView: View {
 
     // MARK: 본문
 
+    @ViewBuilder
     private var content: some View {
         VStack(spacing: 0) {
             headerView
-            PassStackView(
+            if filteredBooks.isEmpty {
+                filterEmptyState      // 책은 있는데 이 필터에 걸리는 게 없을 때
+            } else {
+                PassStackView(
                 passes: PassPresentation.list(from: filteredBooks),
                 front: $front,
                 onStartSession: { startSession(at: $0) },
@@ -73,9 +77,27 @@ struct LibraryView: View {
                 onDelete: { askDelete(at: $0) },
                 onToggleFinished: { toggleFinished(at: $0) },
                 onCommitPageCount: { setPageCount($1, at: $0) }
-            )
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
         }
+    }
+
+    /// 필터 결과가 0건일 때의 안내. 빈 화면을 그냥 두면 "책이 사라졌나?"로 읽힌다.
+    private var filterEmptyState: some View {
+        VStack(spacing: Theme.Spacing.xs) {
+            Text(libraryFilter == .finished ? "아직 완독으로 표시한 책이 없어요" : "지금 읽는 중인 책이 없어요")
+                .font(.system(size: 16, weight: .medium))
+                .foregroundStyle(PassagePalette.ink)
+            Text(libraryFilter == .finished
+                 ? "책 카드의 ⋯ 메뉴에서 완독으로 표시할 수 있어요."
+                 : "모든 책을 완독했어요. 새 책을 더해 보세요.")
+                .font(.system(size: 13))
+                .foregroundStyle(PassagePalette.inkMuted)
+                .multilineTextAlignment(.center)
+        }
+        .padding(.horizontal, Theme.Spacing.lg)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var headerView: some View {
