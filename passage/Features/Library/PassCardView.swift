@@ -330,10 +330,24 @@ struct PassCardView: View {
         pageCountText = ""
     }
 
-    /// 완독한 책은 더 읽을 게 없다 — 남는 건 여정뿐이라 버튼도 하나로 둔다(목업).
+    /// CTA는 책의 수명주기를 따른다.
+    ///  - 기록 0: 아직 여정이 없다 → `[책 읽기]`만. `BookJourney.list`가 완료 세션 없는 책을
+    ///    제외하므로, 이때 '여정보기'를 열어 주면 빈 지도로 떨어지는 막다른 길이 된다.
+    ///  - 읽는 중: `[여정보기] [책 읽기]`
+    ///  - 완독: 더 읽을 게 없다 → `[여정보기]`만(목업)
     @ViewBuilder
     private var cta: some View {
-        if pass.isFinished {
+        if pass.sessionCount == 0 {
+            Button(action: onStartSession) {
+                Text("책 읽기")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(PassagePalette.appBg)
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .background(PassagePalette.ink, in: .capsule)
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, Theme.Spacing.md)
+        } else if pass.isFinished {
             Button(action: onViewJourney) {
                 Text("여정보기")
                     .font(.system(size: 16, weight: .semibold))

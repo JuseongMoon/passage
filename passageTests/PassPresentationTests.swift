@@ -206,6 +206,24 @@ struct PassPresentationTests {
         #expect(PassPresentation(book: book).isFinished == false)
     }
 
+    /// CTA 분기의 근거: 기록이 하나도 없으면 여정보기를 열어 줄 수 없다
+    /// (`BookJourney.list`가 완료 세션 없는 책을 제외하므로 빈 지도로 떨어진다).
+    @Test func sessionCountIsZeroUntilASessionCompletes() throws {
+        let container = PassageModelContainer.makePreview()
+        let context = container.mainContext
+        let book = Book(title: "데미안", totalPageCount: 240)
+        context.insert(book)
+
+        #expect(PassPresentation(book: book).sessionCount == 0)
+
+        let running = ReadingSession(book: book, startPage: 1)   // 진행 중(endDate 없음)
+        context.insert(running)
+        #expect(PassPresentation(book: book).sessionCount == 0)
+
+        finished(book: book, start: 1, end: 30, duration: 600, endDate: .now, in: context)
+        #expect(PassPresentation(book: book).sessionCount == 1)
+    }
+
     /// 완독 여부는 페이지 진행률과 독립이다 — 100%를 읽어도 표시하지 않으면 읽는 중이다.
     @Test func isFinishedIsIndependentOfProgress() throws {
         let container = PassageModelContainer.makePreview()

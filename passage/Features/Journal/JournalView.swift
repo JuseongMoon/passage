@@ -140,6 +140,9 @@ struct JournalView: View {
     /// 서재 등에서 넘어온 포커스 요청을 소비 — 그 책을 선택하고 시트를 펼친다(책 상세).
     private func applyFocusRequest(_ request: UUID?) {
         guard let id = request else { return }
+        // 필터를 함께 푼다 — 완독 필터가 걸린 채로 읽는 중인 책을 포커스하면
+        // 그 책이 갤러리·지도에서 걸러져 아무것도 없는 화면이 된다. (프로토타입도 jTab을 'all'로 되돌린다)
+        filter = .all
         selectedBookID = id
         detent = .collapsed   // 지도의 포커스 경로를 드러내고, 시트는 접힌 채 상단(뒤로·히어로)부터
         router.journeyFocusRequest = nil    // 1회성 요청 소비
