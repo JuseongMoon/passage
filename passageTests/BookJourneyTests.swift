@@ -32,6 +32,43 @@ struct BookJourneyTests {
 
     private func t(_ seconds: TimeInterval) -> Date { Date(timeIntervalSince1970: seconds) }
 
+    // MARK: 진행률(서재 카드에서 옮겨온 값)
+
+    @Test func progressFromMaxEndPageOverTotal() throws {
+        let container = PassageModelContainer.makePreview()
+        let context = container.mainContext
+        let book = Book(title: "책", totalPageCount: 200)
+        context.insert(book)
+        let first = finished(book: book, startDate: t(1000), duration: 600, in: context)
+        first.endPage = 40
+        let second = finished(book: book, startDate: t(2000), duration: 600, in: context)
+        second.endPage = 120        // 최대 도달 페이지가 기준
+
+        #expect(BookJourney(book: book).progressPercent == 60)
+    }
+
+    @Test func progressNilWhenPageCountUnknown() throws {
+        let container = PassageModelContainer.makePreview()
+        let context = container.mainContext
+        let book = Book(title: "책")            // 전체 페이지 수 모름
+        context.insert(book)
+        let session = finished(book: book, startDate: t(1000), duration: 600, in: context)
+        session.endPage = 40
+
+        #expect(BookJourney(book: book).progressPercent == nil)
+    }
+
+    /// 전체 페이지 수를 알면 아직 안 읽었어도 0%로 표시한다(nil이 아니다).
+    @Test func progressZeroWhenKnownButUnread() throws {
+        let container = PassageModelContainer.makePreview()
+        let context = container.mainContext
+        let book = Book(title: "책", totalPageCount: 300)
+        context.insert(book)
+        finished(book: book, startDate: t(1000), duration: 600, in: context)
+
+        #expect(BookJourney(book: book).progressPercent == 0)
+    }
+
     // MARK: 장소 집계 · 첫 방문 순서
 
     @Test func stopsGroupedByPlaceOrderedByFirstVisit() throws {

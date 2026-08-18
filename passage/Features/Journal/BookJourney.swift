@@ -36,6 +36,10 @@ struct BookJourney: Identifiable, Hashable, Sendable {
     let totalDurationText: String
     let sessionCount: Int
 
+    /// 진행률(%). 완료 세션의 최대 도달 페이지 ÷ 전체 페이지 수 — `PassPresentation`과 같은 규칙이다.
+    /// 전체 페이지 수를 모르면 nil. 서재 카드에서 뺀 진행률이 여기로 왔다. (→ #27 결정 4)
+    let progressPercent: Int?
+
     /// 그 책을 읽은 장소들(첫 방문 순). 지도 점선 경로가 이 순서로 연결된다.
     let stops: [JourneyStop]
     /// "N곳의 여정" — 서로 다른 장소 수.
@@ -60,6 +64,14 @@ struct BookJourney: Identifiable, Hashable, Sendable {
         self.sessionCount = completed.count
         self.totalDuration = completed.reduce(0) { $0 + $1.duration }
         self.totalDurationText = completed.isEmpty ? "아직 기록 없음" : totalDuration.readableDuration
+
+        if let total = book.totalPageCount, total > 0 {
+            let current = completed.compactMap(\.endPage).max() ?? 0
+            let ratio = min(1, max(0, Double(current) / Double(total)))
+            self.progressPercent = Int((ratio * 100).rounded())
+        } else {
+            self.progressPercent = nil
+        }
 
         self.stops = Self.makeStops(from: completed)
     }
@@ -109,11 +121,12 @@ enum JourneyFilter: String, CaseIterable, Identifiable, Sendable {
 
     var id: String { rawValue }
 
+    /// 서재 필터(`LibraryFilter`)·기획서와 같은 표기를 쓴다 — 같은 개념을 두 탭이 다르게 부르지 않는다.
     var label: String {
         switch self {
-        case .all: "전체"
-        case .inProgress: "진행 중"
-        case .finished: "완료"
+        case .all: "모든 책"
+        case .inProgress: "읽는 중"
+        case .finished: "완독"
         }
     }
 

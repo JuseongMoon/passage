@@ -16,15 +16,17 @@ struct BookJourneyDetailSheet: View {
     /// "‹ 모든 책 보기" — 포커스 해제(전체 개요로 복귀).
     let onBack: () -> Void
 
-    @Environment(\.modelContext) private var modelContext
     @State private var addingQuote = false
 
-    /// 완료된 세션(여정)을 최신순으로.
+    /// 완료된 세션(여정)을 **오래된 순**으로 — 목업의 순번(1., 2., …)이 곧 여정의 순서다.
     private var journeys: [ReadingSession] {
         (book.sessions ?? [])
             .filter { $0.endDate != nil }
-            .sorted { $0.startDate > $1.startDate }
+            .sorted { $0.startDate < $1.startDate }
     }
+
+    /// 진행률·총시간 등 파생값. 지도·갤러리와 같은 규칙을 쓰려고 BookJourney를 그대로 쓴다.
+    private var journey: BookJourney { BookJourney(book: book) }
     private var totalDuration: TimeInterval {
         journeys.reduce(0) { $0 + $1.duration }
     }
@@ -67,54 +69,42 @@ struct BookJourneyDetailSheet: View {
 
     // MARK: 히어로 (표지 + 제목 + 저자 + 요약 + 완독 토글)
 
+    /// 표지 + 제목/저자 + **총 독서시간(크게)** + 진행률. 이 화면의 주인공은 "얼마나 함께했나"다.
+    /// 완독 토글은 서재 카드 ⋮ 메뉴로 옮겼다 — 여정 탭은 되돌아보는 화면으로 비운다. (→ #27 결정 5)
     private var hero: some View {
         HStack(alignment: .top, spacing: Theme.Spacing.md) {
             BookCoverView(urlString: book.coverRemoteURL)
-                .frame(width: 64, height: 96)
+                .frame(width: 76, height: 102)
                 .clipShape(.rect(cornerRadius: 5, style: .continuous))
-            VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
-                Text(book.displayTitle)
-                    .font(.title3)
-                    .fontDesign(.serif)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(PassagePalette.ink)
-                if !book.author.isEmpty {
-                    Text(book.author)
-                        .font(.subheadline)
-                        .foregroundStyle(PassagePalette.inkMuted)
+            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(book.displayTitle)
+                        .font(.system(size: 16))
+                        .foregroundStyle(PassagePalette.ink)
+                        .lineLimit(2)
+                    if !book.author.isEmpty {
+                        Text(book.author)
+                            .font(.system(size: 12))
+                            .foregroundStyle(PassagePalette.inkMuted)
+                            .lineLimit(1)
+                    }
                 }
-                if !journeys.isEmpty {
-                    Text("\(journeys.count)개의 여정 · 총 \(totalDuration.readableDuration)")
-                        .font(.footnote)
-                        .foregroundStyle(PassagePalette.inkMuted)
-                        .padding(.top, 2)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(journeys.isEmpty ? "아직 기록 없음" : totalDuration.readableDuration)
+                        .font(.system(size: 24, weight: .medium).monospacedDigit())
+                        .foregroundStyle(PassagePalette.ink)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                    if let percent = journey.progressPercent {
+                        Text("독서 진행률 \(percent)%")
+                            .font(.system(size: 12))
+                            .foregroundStyle(PassagePalette.inkMuted)
+                    }
                 }
-                finishToggle
-                    .padding(.top, Theme.Spacing.xs)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, 2)
         }
-    }
-
-    // MARK: 완독 표시 (진행 중 ↔ 다 읽음)
-
-    private var finishToggle: some View {
-        Button {
-            book.finishedDate = book.isFinished ? nil : .now
-            try? modelContext.save()
-        } label: {
-            HStack(spacing: Theme.Spacing.xxs) {
-                Image(systemName: book.isFinished ? "checkmark.seal.fill" : "book")
-                Text(book.isFinished ? "다 읽음" : "읽는 중")
-            }
-            .font(.system(size: 13, weight: .medium))
-            .foregroundStyle(book.isFinished ? PassagePalette.appBg : PassagePalette.ink)
-            .padding(.vertical, 6)
-            .padding(.horizontal, Theme.Spacing.sm)
-            .background(book.isFinished ? PassagePalette.warmAccent : PassagePalette.cardBody, in: .capsule)
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(book.isFinished ? "다 읽음으로 표시됨. 눌러서 해제" : "읽는 중. 눌러서 다 읽음으로 표시")
     }
 
     // MARK: 여정 기록 (완료 세션 · 최신순 → 개별 기억 상세)
@@ -128,28 +118,19 @@ struct BookJourneyDetailSheet: View {
                     .foregroundStyle(PassagePalette.inkMuted)
                     .padding(.horizontal, Theme.Spacing.sm)
             } else {
+                // 목업은 장소별 집계지만 여기서는 **세션 단위를 유지**한다 — 장소로 묶으면
+                // 개별 기억 상세로 들어가는 유일한 경로가 끊긴다. 행 형식만 차용했다. (→ #27)
                 VStack(spacing: 0) {
-                    ForEach(journeys) { session in
+                    ForEach(Array(journeys.enumerated()), id: \.element.id) { index, session in
                         NavigationLink(value: session) {
-                            HStack(spacing: Theme.Spacing.sm) {
-                                MemoryRow(session: session, showsBook: false)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                Image(systemName: "chevron.right")
-                                    .font(.system(size: 12, weight: .semibold))
-                                    .foregroundStyle(PassagePalette.inkFaint)
-                            }
-                            .padding(.horizontal, Theme.Spacing.sm)
-                            .padding(.vertical, Theme.Spacing.xs)
-                            .contentShape(.rect)
+                            journeyRow(index: index, session: session)
                         }
                         .buttonStyle(.plain)
                         if session.id != journeys.last?.id {
                             Divider().overlay(PassagePalette.hairline)
-                                .padding(.leading, Theme.Spacing.sm)
                         }
                     }
                 }
-                .background(PassagePalette.cardBody, in: .rect(cornerRadius: Theme.Radius.md, style: .continuous))
             }
         }
     }
@@ -189,6 +170,28 @@ struct BookJourneyDetailSheet: View {
             }
             .background(PassagePalette.cardBody, in: .rect(cornerRadius: Theme.Radius.md, style: .continuous))
         }
+    }
+
+    /// `1. 집 근처 카페 ──────── 35분` — 순번은 여정의 순서(오래된 것부터).
+    private func journeyRow(index: Int, session: ReadingSession) -> some View {
+        HStack(spacing: Theme.Spacing.sm) {
+            Text("\(index + 1).")
+                .font(.system(size: 14).monospacedDigit())
+                .foregroundStyle(PassagePalette.inkMuted)
+            Text(session.place?.name.isEmpty == false ? session.place!.name : "장소 없음")
+                .font(.system(size: 16))
+                .foregroundStyle(PassagePalette.ink)
+                .lineLimit(1)
+            Spacer(minLength: Theme.Spacing.sm)
+            Text(session.duration.readableDuration)
+                .font(.system(size: 16).monospacedDigit())
+                .foregroundStyle(PassagePalette.ink)
+                .lineLimit(1)
+        }
+        .padding(.vertical, Theme.Spacing.sm)
+        .contentShape(.rect)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(index + 1)번째 여정, \(session.place?.name ?? "장소 없음"), \(session.duration.readableDuration)")
     }
 
     // MARK: 헬퍼

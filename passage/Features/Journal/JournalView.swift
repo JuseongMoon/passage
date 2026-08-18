@@ -23,7 +23,33 @@ struct JournalView: View {
     @State private var fallback: MapPoint?          // 좌표 없는 장소를 현재 위치로 대체
     @State private var detent: SheetDetent = .collapsed
 
-    private enum SheetDetent { case collapsed, expanded }
+    /// 시트 3단(목업). 접힘=지도가 주인공, 중간=목록을 훑는 높이, 펼침=기록을 읽는 높이.
+    private enum SheetDetent: CaseIterable {
+        case collapsed, medium, expanded
+
+        /// 사용 가능한 높이 중 시트가 차지하는 비율.
+        var fraction: CGFloat {
+            switch self {
+            case .collapsed: 0.34
+            case .medium: 0.52
+            case .expanded: 0.86
+            }
+        }
+
+        var raised: SheetDetent {
+            switch self {
+            case .collapsed: .medium
+            case .medium, .expanded: .expanded
+            }
+        }
+
+        var lowered: SheetDetent {
+            switch self {
+            case .expanded: .medium
+            case .medium, .collapsed: .collapsed
+            }
+        }
+    }
 
     private var allJourneys: [BookJourney] { BookJourney.list(from: books) }
 
@@ -63,9 +89,8 @@ struct JournalView: View {
             header
             GeometryReader { geo in
                 let available = geo.size.height
-                let collapsed = available * 0.46
-                let expanded = available * 0.86
-                let sheetHeight = detent == .expanded ? expanded : collapsed
+                let collapsed = available * SheetDetent.collapsed.fraction
+                let sheetHeight = available * detent.fraction
                 ZStack(alignment: .bottom) {
                     // 시트가 지도 하단을 덮으므로, 접힘 높이를 지도에 넘겨 카메라가
                     // 가려지지 않는 상단 영역을 기준으로 마커·경로를 중앙에 맞추게 한다.
@@ -77,6 +102,13 @@ struct JournalView: View {
                     )
 
                     sheet(all: journeys, filtered: filtered, height: sheetHeight)
+
+                    // 시트를 끝까지 올리면 지도가 가려진다 → 되돌아갈 길을 띄운다(목업).
+                    if detent == .expanded {
+                        mapButton
+                            .padding(.bottom, Theme.Spacing.md)
+                            .transition(.opacity)
+                    }
                 }
             }
         }
@@ -113,10 +145,12 @@ struct JournalView: View {
         router.journeyFocusRequest = nil    // 1회성 요청 소비
     }
 
-    /// 포커스 해제(전체 개요로 복귀).
+    /// 포커스 해제(전체 개요로 복귀). 시트도 함께 접는다 — 전체 보기는 표지 한 줄뿐이라
+    /// 펼친 채로 두면 빈 공간만 남고 지도도 가려진다.
     private func deselectBook() {
         withAnimation(reduceMotion ? nil : .snappy(duration: 0.25)) {
             selectedBookID = nil
+            detent = .collapsed
         }
     }
 
@@ -151,7 +185,28 @@ struct JournalView: View {
         )
     }
 
-    /// 시트 손잡이 — 위/아래로 끌어 2단 전환(펼침/접힘). 리스트 스크롤과 충돌하지 않도록 이 영역만 드래그.
+    /// "지도보기" — 시트를 끝까지 올렸을 때만 뜨는 플로팅 버튼. 누르면 접힘으로 돌아가 지도가 드러난다.
+    private var mapButton: some View {
+        Button {
+            withAnimation(reduceMotion ? nil : .snappy(duration: 0.28)) { detent = .collapsed }
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "map")
+                    .font(.system(size: 12, weight: .semibold))
+                Text("지도보기")
+                    .font(.system(size: 13, weight: .semibold))
+            }
+            .foregroundStyle(PassagePalette.appBg)
+            .padding(.vertical, 10)
+            .padding(.horizontal, Theme.Spacing.md)
+            .background(PassagePalette.ink, in: .capsule)
+            .shadow(color: .black.opacity(0.24), radius: 8, x: 0, y: 4)
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint("시트를 접고 지도를 봅니다")
+    }
+
+    /// 시트 손잡이 — 위/아래로 끌어 3단 전환(접힘·중간·펼침). 리스트 스크롤과 충돌하지 않도록 이 영역만 드래그.
     private var grabber: some View {
         Capsule()
             .fill(PassagePalette.inkFaint)
@@ -164,8 +219,8 @@ struct JournalView: View {
                 DragGesture(minimumDistance: 8)
                     .onEnded { value in
                         withAnimation(reduceMotion ? nil : .snappy(duration: 0.28)) {
-                            if value.translation.height < -40 { detent = .expanded }
-                            else if value.translation.height > 40 { detent = .collapsed }
+                            if value.translation.height < -40 { detent = detent.raised }
+                            else if value.translation.height > 40 { detent = detent.lowered }
                         }
                     }
             )
@@ -226,19 +281,11 @@ struct JournalView: View {
         return Button {
             selectJourney(journey)
         } label: {
-            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                cover(journey, isSelected: isSelected)
-                Text(journey.title)
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(PassagePalette.ink)
-                    .lineLimit(1)
-                Text(journey.totalDurationText)
-                    .font(.system(size: 11))
-                    .foregroundStyle(PassagePalette.inkMuted)
-                    .lineLimit(1)
-            }
-            .frame(width: 108)
-            .opacity(dimmed ? 0.45 : 1)
+            // 목업: 표지만 늘어놓는다. 제목·시간은 고르면 아래 상세에서 읽는다.
+            // 시각 라벨이 없으므로 accessibilityLabel이 유일한 설명이 된다.
+            cover(journey, isSelected: isSelected)
+                .frame(width: 108)
+                .opacity(dimmed ? 0.45 : 1)
         }
         .buttonStyle(.plain)
         .accessibilityLabel("\(journey.title), \(journey.totalDurationText), \(journey.distinctPlaceCount)곳의 여정")
