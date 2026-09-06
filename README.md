@@ -3,6 +3,10 @@
 독서를 **관리가 아니라 회상**으로 다루는 iOS 앱입니다.
 책을 다 읽고 나면 조용히 하나만 묻습니다 — **"어디서 읽으셨나요?"**
 
+<img src="Docs/screenshots/01-library.png" width="30%"> <img src="Docs/screenshots/02-reading-session.png" width="30%"> <img src="Docs/screenshots/03-journey-map.png" width="30%">
+
+<sub>서재 — 책마다 한 장의 보딩패스 · 독서 세션 — 시간과 페이지만 남긴다 · 독서여정 — 읽은 장소를 지도로</sub>
+
 연간 목표도, 읽은 권수도, 스트릭도 없습니다.
 그 순간의 책·장소·시간·사진이 하나의 **기억**으로 남고, 나중에 책별·장소별로 되돌아봅니다.
 
@@ -47,10 +51,17 @@ SwiftData의 `@Query`와 `ModelContext`가 이미 그 역할을 합니다.
 `@Query`의 자동 갱신 같은 이점을 잃습니다.
 **추상화는 이득이 분명할 때만 넣는다**는 원칙에 따라 뺐습니다. (DECISIONS #6)
 
-**4. 스키마 버전 관리를 1일차에 도입**
-`VersionedSchema` + `MigrationPlan`은 데이터가 쌓인 뒤에 넣으면 이미 늦습니다.
-모델이 3개뿐인 시점에 미리 넣어두었습니다. (DECISIONS #12)
-→ [`Core/Models/Schema/`](passage/Core/Models/Schema/)
+**4. 스키마 버저닝을 1일차에 넣었다가 되돌렸다**
+`VersionedSchema` + `MigrationPlan`을 1일차에 도입했지만(#12), **버전마다 모델 스냅샷을 두지 않고
+`SchemaV1/V2/V3`가 모두 같은 `Book` 클래스를 가리켰습니다.** 세 버전의 체크섬이 같아지고,
+기존 스토어가 있는 기기에서 `Duplicate version checksums` 런치 크래시가 났습니다.
+개발 중에는 스토어를 초기화하며 쓰느라 드러나지 않다가 **실제 테스터 기기에서 처음 터졌습니다.**
+
+지금은 `migrationPlan`을 지정하지 않고 SwiftData의 **자동 lightweight 마이그레이션**에 맡깁니다.
+앱이 미출시이고 지금까지의 스키마 변경이 전부 additive(옵셔널 필드 추가)라 성립하는 선택입니다.
+비-additive 변경이나 출시 후 버전 간 마이그레이션이 필요해지는 시점에,
+**버전별 모델 스냅샷을 제대로 갖춘** `VersionedSchema`로 다시 들어갑니다 — 재도입 조건을 결정에 적어두었습니다.
+(DECISIONS [#12](Docs/DECISIONS.md) → [#22](Docs/DECISIONS.md))
 
 **5. Swift 6 + MainActor 기본 격리**
 동시성 경고를 나중에 몰아서 처리하지 않도록 처음부터 Swift 6 language mode로 시작했습니다.
@@ -61,7 +72,7 @@ SwiftData의 `@Query`와 `ModelContext`가 이미 그 역할을 합니다.
 passage/
 ├── App/                PassageApp · RootView · AppDependencies(서비스 컨테이너)
 ├── Core/
-│   ├── Models/         Book · Place · ReadingSession + 스키마 버전
+│   ├── Models/         Book · Place · ReadingSession · Quote · PageRules
 │   ├── Services/       BookSearch · Naver 지도 · Location · ImageStore · Auth
 │   ├── Persistence/    ModelContainer 구성
 │   └── DesignSystem/   Theme · BookCoverView · StoredImageView

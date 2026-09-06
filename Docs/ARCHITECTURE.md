@@ -44,8 +44,7 @@ passage/
 │   ├── Journal/                  Book View · Place View · Memory 상세
 │   └── Settings/                 설정 · Sign in with Apple(더미)
 ├── Core/
-│   ├── Models/                   Book.swift · ReadingSession.swift · Place.swift
-│   │   └── Schema/               SchemaV1.swift · PassageMigrationPlan.swift
+│   ├── Models/                   Book.swift · ReadingSession.swift · Place.swift · Quote.swift · PageRules.swift
 │   ├── Persistence/              ModelContainer+Passage.swift · (ModelActor)
 │   ├── Services/
 │   │   ├── Naver/                NaverMapService · NaverMapView(Representable) · Models
@@ -126,20 +125,19 @@ final class Place {
 - enum을 저장하면 `RawRepresentable`(String/Int) + 기본값. (현재 모델엔 없음)
 - 대용량 바이너리(사진)는 모델에 넣지 않는다 → `ImageStore`로 분리(§7).
 
-## 5. 스키마 버전 관리 · 마이그레이션
-**1일차부터** 버전 스키마를 도입한다(수년 유지보수의 핵심).
+## 5. 스키마 진화 · 마이그레이션
+**`VersionedSchema` + `MigrationPlan`은 쓰지 않는다.** 컨테이너는 단일 `Schema([...])`로 만들고
+`migrationPlan`을 지정하지 않아 **SwiftData 자동 lightweight 마이그레이션**에 맡긴다.
 ```swift
-enum SchemaV1: VersionedSchema {
-    static var versionIdentifier = Schema.Version(1, 0, 0)
-    static var models: [any PersistentModel.Type] { [Book.self, ReadingSession.self, Place.self] }
-}
-enum PassageMigrationPlan: SchemaMigrationPlan {
-    static var schemas: [any VersionedSchema.Type] { [SchemaV1.self] }
-    static var stages: [MigrationStage] { [] }   // V2 추가 시 여기에 stage 등록
-}
+let schema = Schema([Book.self, ReadingSession.self, Place.self, Quote.self, SessionPhoto.self])
+// migrationPlan 미지정 — 자동 lightweight
 ```
-컨테이너는 `Schema(versionedSchema: SchemaV1.self)` + `migrationPlan: PassageMigrationPlan.self`로 생성.
-필드 추가/변경은 새 `SchemaVn`과 `MigrationStage`로. **기존 필드 삭제·타입 변경은 파괴적** → 사전 확인.
+- 스키마 변경은 **additive**(옵셔널 필드 추가)로 한다. 자동 마이그레이션이 기존 스토어에 컬럼을 안전히 추가한다.
+- **왜 되돌렸나**: 버전마다 모델 스냅샷 없이 `SchemaV1/V2/V3`가 같은 `Book` 클래스를 가리켜 체크섬이 동일해졌고,
+  기존 스토어를 가진 기기에서 `Duplicate version checksums` 런치 크래시가 났다. → DECISIONS #22(#12 철회)
+- **재도입 조건**: 비-additive 변경(필드 삭제·타입 변경·관계 재구성)이나 출시 후 버전 간 마이그레이션이 필요해지면,
+  그때 **버전별 모델 스냅샷을 갖춘** `VersionedSchema` + `MigrationStage`를 도입한다. **파괴적 변경 전 사전 확인.**
+- ⚠️ 현재 마이그레이션 실패 시 `destroyAndRetry`(스토어 삭제 후 재생성) 폴백이 있다. **정식 출시 전 제거 대상.**
 
 ## 6. 영속성 · 동시성
 - 메인 컨텍스트는 `@Environment(\.modelContext)`로 View에서 사용(메인 액터).
@@ -241,7 +239,7 @@ protocol ImageStore: Sendable {
    `passage.entitlements`의 `com.apple.developer.icloud-container-identifiers`에 컨테이너 id 채우기(현재 빈 배열).
    Background Modes → Remote notifications(이미 Info.plist에 `remote-notification` 있음).
 8. **Swift 언어 모드** — 타깃 `SWIFT_VERSION`/언어 모드를 **Swift 6**로 상향(현재 5.0).
-9. **ModelContainer** — `PassageApp`에서 SchemaV1 + MigrationPlan + CloudKit 옵션으로 컨테이너 구성(§5).
+9. **ModelContainer** — `PassageApp`에서 단일 `Schema` + CloudKit 옵션으로 컨테이너 구성(migrationPlan 미지정, §5).
 10. **CloudKit 스키마 배포** — 개발 중 CloudKit Console에서 스키마 확인, 출시 전 Production으로 Deploy.
 
 ## 부록 B. 열린 결정 (구현 전 확정 필요)

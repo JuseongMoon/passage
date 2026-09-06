@@ -65,10 +65,12 @@
 - **이유**: 데이터 정체성은 iCloud(CloudKit)에 묶이므로 로그인은 게이팅이 아니라 프로필/계정 표시용.
 - **트레이드오프**: 기기 로그인은 'Sign in with Apple' capability 프로비저닝 필요. userID는 UserDefaults(비민감) — 강화 시 Keychain.
 
-### #12 — VersionedSchema + MigrationPlan 1일차 도입 ✅
-- **결정**: 처음부터 `SchemaV1` + `PassageMigrationPlan` 구성.
-- **이유**: 수년 유지보수에서 모델은 반드시 변한다. 나중에 도입하면 초기 스키마 버저닝 소급이 어렵다.
-- **영향**: 필드 변경은 새 `SchemaVn` + `MigrationStage`. 파괴적 변경 전 확인.
+### ~~#12~~ — VersionedSchema + MigrationPlan 1일차 도입 (→ #22에서 철회) ❌
+> **철회됨.** 버전마다 모델 스냅샷 없이 도입해 "Duplicate version checksums" 크래시를 유발했다.
+> 현재는 자동 lightweight 마이그레이션을 쓴다. 근본 원인과 재도입 조건은 **#22** 참조. 아래는 당시 기록이다.
+- ~~**결정**: 처음부터 `SchemaV1` + `PassageMigrationPlan` 구성.~~
+- ~~**이유**: 수년 유지보수에서 모델은 반드시 변한다. 나중에 도입하면 초기 스키마 버저닝 소급이 어렵다.~~
+- ~~**영향**: 필드 변경은 새 `SchemaVn` + `MigrationStage`. 파괴적 변경 전 확인.~~
 
 ### #13 — BookSearch 제공자: Naver 책 검색 ✅
 - **결정**: `BookSearchService` 프로토콜 뒤 **`NaverBookSearchService`**(기본). `GoogleBooksSearchService`는 대안으로 보존.

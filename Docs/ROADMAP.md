@@ -8,7 +8,7 @@
 ## Phase 0 — 기반 (Foundations)
 프로젝트가 실제로 서게 만드는 토대. 기능 전에 이것부터.
 - [x] `.gitignore` · `Config/*.xcconfig` · `Secrets.xcconfig`(gitignored)
-- [x] 데이터 모델(Book · ReadingSession · Place) + `SchemaV1` + `MigrationPlan`
+- [x] 데이터 모델(Book · ReadingSession · Place) + 단일 `Schema`(자동 lightweight 마이그레이션 — `VersionedSchema`는 #22에서 철회)
 - [x] `ModelContainer`(CloudKit private + 로컬 폴백) · 앱 진입점 정리(템플릿 제거)
 - [x] DesignSystem 토큰(Theme: Spacing · Radius · card 재질) — Color/Typography는 UI 작업 시 확장
 - [x] `AppDependencies`(DI) + Root `TabView` 골격(서재 · 저널 · 설정) — 시뮬레이터 실행·렌더 검증 완료

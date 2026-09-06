@@ -39,7 +39,7 @@ SwiftUI · SwiftData(+CloudKit private sync) · Observation(`@Observable`) · as
 ## 5. 반드시 지킬 원칙
 1. Gamification · 목표 · 스트릭 · 경쟁 · 대시보드를 **추가하지 않는다.** 새 기능은 "이게 기억을 돕는가?"로 판단.
 2. Calm · Minimal을 해치면 넣지 않는다. **의심되면 덜 넣는다.**
-3. 스키마 변경은 `VersionedSchema` + `MigrationPlan`으로. **파괴적 변경 전 사용자 확인.**
+3. **스키마 변경은 additive(옵셔널 필드 추가)로 하고 SwiftData 자동 lightweight 마이그레이션에 맡긴다 — `migrationPlan`을 지정하지 않는다.** 버전마다 모델 스냅샷 없이 `VersionedSchema`+`MigrationPlan`을 쓰면 중복 checksum 런치 크래시가 난다(실제 이력, DECISIONS #22). 재도입하려면 **버전별 모델 스냅샷을 먼저 갖춰라.** 현재 마이그레이션 실패 시 `destroyAndRetry`(스토어 삭제) 폴백이 있고 **정식 출시 전 제거 대상**이다. **파괴적 변경 전 사용자 확인.**
 4. 리팩토링·기능 제거 전 전체 grep으로 영향도 분석, 대안 먼저 검토.
 5. 코드 변경 후 **전체 빌드**로 컴파일 확인, 데이터 흐름은 실제 데이터로 검증.
 6. 주요 결정은 `Docs/DECISIONS.md`에 기록하고 문서를 최신으로 유지.
