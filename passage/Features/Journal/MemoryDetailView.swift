@@ -166,9 +166,11 @@ struct MemoryDetailView: View {
                     .padding(.vertical, Theme.Spacing.xxs)
                 }
             }
+            // PhotosPicker의 label은 @Sendable(비격리) 클로저다 — MainActor 토큰은 밖에서 값으로 꺼내 넘긴다.
+            let accent = PassagePalette.warmAccent
             PhotosPicker(selection: $photoItem, matching: .images) {
                 Label("사진 추가", systemImage: "photo")
-                    .foregroundStyle(PassagePalette.warmAccent)
+                    .foregroundStyle(accent)
             }
         } header: {
             sectionHeader("사진")

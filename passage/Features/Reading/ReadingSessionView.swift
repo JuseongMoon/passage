@@ -290,16 +290,19 @@ struct ReadingSessionView: View {
     /// 그날 그 자리의 사진 한 장(선택). 장소 태그·생각과 같은 한 줄 행이고, 고르면 아래에 미리보기가 남는다.
     /// 사진은 장소가 아니라 이 세션에 붙는다 — 같은 카페에서 읽은 다른 날과 섞이지 않는다. (→ DECISIONS #27)
     private var photoSection: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+        // PhotosPicker의 label은 @Sendable(비격리) 클로저다 — 뷰 상태·토큰을 안에서 읽지 말고 값으로 넘긴다.
+        let swatch = swatch, hasPhoto = photoData != nil
+        let gap = Theme.Spacing.xs, minGap = Theme.Spacing.sm
+        return VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
             PhotosPicker(selection: $photoItem, matching: .images) {
-                HStack(spacing: Theme.Spacing.xs) {
+                HStack(spacing: gap) {
                     Text("사진")
                         .font(.system(size: 16))
                         .foregroundStyle(swatch.ink)
-                    Spacer(minLength: Theme.Spacing.sm)
-                    Text(photoData == nil ? "추가하기" : "변경하기")
+                    Spacer(minLength: minGap)
+                    Text(hasPhoto ? "변경하기" : "추가하기")
                         .font(.system(size: 16))
-                        .foregroundStyle(photoData == nil ? swatch.dim : swatch.ink)
+                        .foregroundStyle(hasPhoto ? swatch.ink : swatch.dim)
                 }
                 .contentShape(.rect)
             }

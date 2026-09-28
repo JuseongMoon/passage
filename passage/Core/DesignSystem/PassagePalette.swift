@@ -52,8 +52,8 @@ enum PassagePalette {
         let ink: Color
         /// 표지 자리표시(면) 색.
         let cover: Color
-        /// base 위 흐린 텍스트(날짜 등).
-        var dim: Color { ink.opacity(0.7) }
+        /// base 위 흐린 텍스트(날짜 등). nonisolated: Sendable 값의 순수 계산이라 비격리 클로저(PhotosPicker label 등)에서도 읽힌다.
+        nonisolated var dim: Color { ink.opacity(0.7) }
     }
 
     /// 목업에서 온 따뜻한 8색. 밝은 톤(#c8b48a)만 잉크가 어둡다.

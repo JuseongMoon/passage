@@ -194,7 +194,8 @@ struct JourneyMapView: UIViewRepresentable {
             if mapView.frame.width > 1, mapView.frame.height > 1 {
                 apply()
             } else {
-                DispatchQueue.main.async(execute: apply)
+                // 같은 MainActor로 한 번 미룬다. DispatchQueue 블록은 @Sendable이라 비-Sendable 클로저를 넘길 수 없다.
+                Task { @MainActor in apply() }
             }
         }
 
