@@ -384,7 +384,9 @@ struct PassCardView: View {
 
 /// 보딩패스형 티켓 실루엣. 위 모서리는 둥글게, `notchCenterY`(절취선)에서 좌·우에
 /// 반원 노치를 파 "뜯는 티켓" 느낌을 준다. 아래 모서리는 스택에 맞물리도록 각지게 둔다.
-private struct TicketShape: Shape {
+/// nonisolated: `Shape`의 `path(in:)`·`animatableData`는 비격리 요구사항이다. 모듈 기본 격리(MainActor)를
+/// 물려받으면 Xcode 27부터 준수 자체가 컴파일 에러다. 값만 계산하는 순수 도형이라 격리가 필요 없다.
+private nonisolated struct TicketShape: Shape {
     var topRadius: CGFloat
     var notchRadius: CGFloat
     var notchCenterY: CGFloat
