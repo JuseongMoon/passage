@@ -3,7 +3,7 @@
 Passage는 독서를 삶의 기억으로 남기는 **Reading Memory App**이다.
 핵심 철학은 **Memory over Productivity**.
 
-개발 지침(항상 준수) — 아래 문서를 반드시 먼저 읽는다:
+개발 지침(항상 적용):
 
 @Docs/CLAUDE.md
 

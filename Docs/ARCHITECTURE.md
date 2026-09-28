@@ -7,7 +7,7 @@
 
 ## 1. 설계 원칙
 1. **Native-first** — SwiftUI · SwiftData · CloudKit · Observation · async/await · Swift 6를 관용적으로 사용.
-2. **Feature 기반 모듈화** — 기능은 자기 폴더 안에서 완결. 공용만 `Core/`. Feature 간 직접 의존 금지.
+2. **Feature 기반 모듈화** — 기능은 자기 폴더 안에서 완결. 여러 Feature가 쓰는 모델·로직은 `Core/`. Feature 간 직접 참조는 다른 Feature 화면을 띄우는 진입점과 앱 루트에서 Environment로 주입하는 객체로 한정(DECISIONS #30).
 3. **의존성은 한 방향** — `View → Store → Service(protocol) → Persistence/Network`. 아래 레이어는 위를 모른다.
 4. **프로토콜 경계** — 외부 시스템(지도·검색·저장·인증)은 protocol로 감싸 교체·테스트 가능하게.
 5. **Session is Source of Truth** — 파생 데이터를 저장하지 않는다. 통계는 세션에서 계산.

@@ -21,7 +21,8 @@ SwiftUI · SwiftData(+CloudKit private sync) · Observation(`@Observable`) · as
 
 ## 3. 아키텍처 요약
 - **레이어(의존성 한 방향 ↓)**: `View` → `@Observable Store` → `Service(protocol)` → `SwiftData / Network`
-- **Feature 기반 구조**: 기능별 폴더. 공용 코드만 `Core/`. Feature끼리 서로 import 금지.
+- **Feature 기반 구조**: 기능별 폴더. 여러 Feature가 쓰는 모델·로직은 `Core/`에 둔다.
+  Feature 간 직접 참조는 다른 Feature의 화면을 띄우는 진입점과 앱 루트에서 Environment로 주입하는 객체로 한정한다.
 - **MV 하이브리드**: 상태·비동기·다단계 흐름은 `@Observable` Store, 단순 조회 화면은 View에서 `@Query`.
   → **View마다 ViewModel을 강제하지 않는다.**
 - **Repository 미사용**: SwiftData 관용 방식(`@Query` / `FetchDescriptor`) + 의도가 드러나는 도메인 서비스 메서드로 쓰기 캡슐화.
