@@ -174,6 +174,7 @@
 
 ---
 ### #22 — VersionedSchema+MigrationPlan 제거, 자동 lightweight 마이그레이션으로 전환 ✅ (#12 대체)
+> **#31에서 버전별 모델 스냅샷을 갖춘 형태로 재도입했다**(이 항목의 "향후"를 이행). 아래는 당시 기록이다.
 - **문제**: `#20`(SchemaV2)·`#21`(SchemaV3)에서 버전 스키마를 추가했으나, **`SchemaV1/V2/V3`가 모두 같은 현재 `Book` 클래스**(모든 필드 포함)를 가리켜 세 버전의 **체크섬이 동일** → 기존 스토어가 있는 기기/시뮬레이터에서 `ModelContainer(for:migrationPlan:)` 생성 시 **`NSInvalidArgumentException: 'Duplicate version checksums detected.'` 런치 크래시**(사용자 리포트, iPhone 17 Pro Max). 개발 중 fresh 스토어(초기화)에선 우회돼 안 보였을 뿐, 근본은 코드 버그.
 - **근본 원인**: SwiftData `VersionedSchema`는 **버전마다 모델 스냅샷**(그 시점의 필드로 고정된 별도 타입)을 가져야 체크섬이 달라진다. 하나의 진화하는 `Book`을 여러 버전이 공유하면 전부 동일 체크섬. `#12`가 "1일차 VersionedSchema+MigrationPlan"을 정했지만 스냅샷 없이 도입해 실질적으로 미작동(마이그레이션 abort·중복 체크섬).
 - **결정**: 앱은 **미출시**(마이그레이션할 실 버전 없음)이고 지금까지 변경이 전부 **additive(옵셔널 필드 추가)** 이므로, **`VersionedSchema`+`MigrationPlan`을 제거**하고 **단일 `Schema([Book, ReadingSession, Place, Quote, PlacePhoto])` + `migrationPlan` 미지정(SwiftData 자동 lightweight 마이그레이션)** 으로 전환. `SchemaV1/V2/V3.swift`·`PassageMigrationPlan.swift` 삭제. 자동 마이그레이션이 기존 스토어에 옵셔널 컬럼을 안전하게 추가.
@@ -296,5 +297,22 @@
 - **이유**: 기존 문구 "Feature끼리 서로 import 금지"는 단일 앱 타깃이라 `import`가 존재하지 않아 문자 그대로는 의미가 없고, 의도("Feature 간 직접 의존 금지")는 위 두 형태로 이미 코드 5곳에서 쓰이고 있었다. 에이전트가 규칙을 문자 그대로 적용하면 정상 구조를 "위반"으로 보고 고치려 든다. 로직 격리 의도 자체는 지켜지고 있다(여정 파생값이 Library의 `PassPresentation`을 쓰지 않고 Journal 로컬 타입으로 신설된 것처럼).
 - **영향**: `Docs/CLAUDE.md` · `ARCHITECTURE.md` · `README.md` 문구 정정. 코드 변경 없음. 규칙을 다시 엄격하게 하려면 두 Environment 객체를 `Core/`로 옮기고 화면 진입을 `AppRouter` 경유로 바꾸는 리팩토링이 선행돼야 한다.
 
+### #31 — 스키마 버저닝 재도입: 버전별 스냅샷 + 정적 가드 + 픽스처 ✅ (#22의 "향후" 이행)
+- **결정**: 모델을 `PassageSchemaV1: VersionedSchema` 안의 **스냅샷**(저장 속성·관계·속성 옵션 + 인자 없는 `init()`)으로 옮기고, 앱 코드는 `PassageSchema.swift`의 typealias(`Book = PassageSchemaLatest.Book` …)로 버전을 모른 채 쓴다. 동작(convenience init·계산 속성·정규화)은 `Core/Models/*.swift`의 `nonisolated extension`. 모든 컨테이너는 `PassageModelContainer.makeContainer(_:)` 한 곳에서 `PassageMigrationPlan`과 함께 만든다.
+- **이유**: #26이 "출시 전 VersionedSchema 전환"을 숙제로 남겼다. 출시 순간에 몰아서 하면 "기존 스토어가 새 구조로 열리는가"를 출시 압박 속에서 처음 확인하게 된다. 지금 넣어도 테스터 단계의 작업 방식은 그대로다(아래 실측 ③).
+- **실측**(macOS SwiftData 실험 + iOS 시뮬레이터):
+  1. 모델을 enum 안으로 옮겨도 **엔티티 이름은 그대로**(`Book`)이고 체크섬이 같아 **버저닝 전 스토어를 마이그레이션 없이 연다**. 관계·externalStorage 사진·쓰기·재오픈 정상.
+  2. V2(옵셔널 필드 추가)+`.lightweight` 단계는 V1 스토어와 버저닝 전 스토어 **양쪽에서** 올라온다.
+  3. 버전이 하나일 때 그 스냅샷을 **제자리에서 additive로 고쳐도** 자동 lightweight로 열린다(컬럼 추가 확인) → 출시 전엔 새 버전을 만들 필요가 없다.
+  4. **#22 재현**: 마이그레이션이 필요한 스토어 + 같은 클래스를 공유하는 두 버전 → `NSInvalidArgumentException: Duplicate version checksums detected.` — **잡을 수 없는 Objective-C 예외**라 `do/catch`도 #26 폴백도 못 막는다. (스토어가 이미 최신 체크섬이면 검사 자체를 건너뛰어 조용히 넘어간다 — 개발 중 안 보였던 이유.)
+  5. 시뮬레이터(iOS 27.0): 구조 변경 전 빌드가 만든 **CloudKit 미러링 스토어**(`ANSCK*` 테이블 포함)에 책 2·세션 3(진행 중 1)·사진·인용구·장소를 넣고 새 빌드로 **덮어 설치** → 같은 레코드 ID·개수 유지, 진행 중 세션 복원, 폴백·CoreData 오류 로그 없음.
+- **가드**: `PassageSchemaTests` — ① 버전 간 모델 클래스 비공유(정적, ④ 때문) ② 계획이 최신 버전에서 끝나고 인접 버전마다 단계가 있음 ③ 버저닝 전 코드가 iOS에서 만든 픽스처(`passageTests/Fixtures/store-unversioned.store`)를 데이터 손실 없이 연다. 가드 ①②는 공유 클래스 V2를 일부러 심어 **실패하는 것까지 확인**했다. 새 버전 전에는 `writeFixture()`로 현재 버전 픽스처를 먼저 만든다.
+- **트레이드오프 · 남은 일**:
+  - 출시(CloudKit Production 배포) 후 이전 스냅샷은 동결. Production 스키마는 추가만 되므로 이름 변경·삭제는 "새 필드 + 옛 필드 방치"로 대신한다. `.custom` 단계의 CloudKit 스토어 동작은 미실측.
+  - **#26 스토어 삭제 폴백은 그대로 둔다**(테스터 단계 정책, 사용자 결정). 출시 전 제거할 때 실패 처리(스토어 격리 보관·안내 화면 등)를 함께 정한다.
+  - 배포 타깃 iOS 18.6 런타임은 이 기기에 없어 iOS 27.0 시뮬레이터로만 확인했다.
+- **함께**: Xcode 27에서 `TicketShape`(`Shape`)가 모듈 기본 격리(MainActor)를 물려받아 준수 자체가 컴파일 에러가 됐다 → `nonisolated`(값만 계산하는 순수 도형).
+- **상태**: ✅ 빌드 그린 · `passageTests` 90개 중 89 통과 · 1 건너뜀(`writeFixture`, 설계대로).
+
 ---
-*새 결정은 아래에 #31부터 이어서 기록한다.*
+*새 결정은 아래에 #32부터 이어서 기록한다.*

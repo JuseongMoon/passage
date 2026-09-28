@@ -4,43 +4,22 @@
 //
 //  읽는 대상. 검색 · ISBN · 수동 등록으로 추가된다.
 //  참조 엔티티이며, 실제 독서 기록은 ReadingSession이 가진다. (Session is Source of Truth)
+//  저장 속성·관계는 스키마 스냅샷에 있고 여기엔 동작만 둔다. (→ Schema/PassageSchema.swift)
 //
 
 import Foundation
 import SwiftData
 
-// nonisolated: 모듈 기본 격리가 MainActor여도 SwiftData가 내부 스레드에서 모델에 접근할 수 있어야 한다.
-@Model
-nonisolated final class Book {
-    // CloudKit 규칙: 모든 저장 속성은 optional 또는 기본값을 가진다. @Attribute(.unique) 금지.
-    var id: UUID = UUID()
-    var title: String = ""
-    /// 제목 괄호 부제 — 검색 제목의 첫 '(' 이후를 부제로 떼어 보관(현재 화면 미표시, 향후 사용). 괄호 없으면 "".
-    var subtitle: String = ""
-    var author: String = ""
-    var isbn: String?
-    var totalPageCount: Int?
-    var coverRemoteURL: String?        // 검색 API가 준 표지 URL
-    var coverImageRef: String?         // 로컬 ImageStore 참조(표지 캐시)
-    var coverColorHex: String?         // 표지 대표색 "RRGGBB"(서재 카드색 소스). 미추출/표지없음이면 nil → 해시 폴백.
-    var dateAdded: Date = Date()
-    var finishedDate: Date?            // 완독 표시(다 읽은 날). nil = 읽는 중.
-
-    // 관계는 optional + inverse 명시. 책 삭제 시 그 책의 세션(기억)도 함께 삭제.
-    @Relationship(deleteRule: .cascade, inverse: \ReadingSession.book)
-    var sessions: [ReadingSession]? = []
-
-    // 이 책에서 남긴 인용구. 책 삭제 시 함께 삭제.
-    @Relationship(deleteRule: .cascade, inverse: \Quote.book)
-    var quotes: [Quote]? = []
-
-    init(
+// nonisolated: 모델 동작도 SwiftData 내부 스레드에서 불릴 수 있다(→ Schema/PassageSchemaV1.swift 주석).
+nonisolated extension Book {
+    convenience init(
         title: String = "",
         author: String = "",
         isbn: String? = nil,
         totalPageCount: Int? = nil,
         coverRemoteURL: String? = nil
     ) {
+        self.init()
         // 제목의 괄호 이후는 부제로 분리해 따로 보관하고, 본문 제목엔 괄호 앞부분만 남긴다.
         let parsed = Self.parseTitle(title)
         self.title = parsed.title
@@ -58,7 +37,7 @@ nonisolated final class Book {
 
     /// 원제목을 본문 제목과 괄호 부제로 나눈다. 첫 여는 괄호('(' 또는 전각 '（') 이후를 부제로 보고
     /// 괄호를 떼어낸다. 괄호가 없으면 부제는 "". 제목이 괄호로 시작하면(본문이 비면) 분리하지 않는다.
-    nonisolated static func parseTitle(_ raw: String) -> (title: String, subtitle: String) {
+    static func parseTitle(_ raw: String) -> (title: String, subtitle: String) {
         let opens: Set<Character> = ["(", "（"]
         guard let openIdx = raw.firstIndex(where: { opens.contains($0) }) else {
             return (raw.trimmingCharacters(in: .whitespacesAndNewlines), "")

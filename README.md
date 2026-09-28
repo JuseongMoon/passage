@@ -51,17 +51,18 @@ SwiftData의 `@Query`와 `ModelContext`가 이미 그 역할을 합니다.
 `@Query`의 자동 갱신 같은 이점을 잃습니다.
 **추상화는 이득이 분명할 때만 넣는다**는 원칙에 따라 뺐습니다. (DECISIONS #6)
 
-**4. 스키마 버저닝을 1일차에 넣었다가 되돌렸다**
+**4. 스키마 버저닝을 1일차에 넣었다가 되돌리고, 제대로 다시 넣었다**
 `VersionedSchema` + `MigrationPlan`을 1일차에 도입했지만(#12), **버전마다 모델 스냅샷을 두지 않고
 `SchemaV1/V2/V3`가 모두 같은 `Book` 클래스를 가리켰습니다.** 세 버전의 체크섬이 같아지고,
 기존 스토어가 있는 기기에서 `Duplicate version checksums` 런치 크래시가 났습니다.
 개발 중에는 스토어를 초기화하며 쓰느라 드러나지 않다가 **실제 테스터 기기에서 처음 터졌습니다.**
 
-지금은 `migrationPlan`을 지정하지 않고 SwiftData의 **자동 lightweight 마이그레이션**에 맡깁니다.
-앱이 미출시이고 지금까지의 스키마 변경이 전부 additive(옵셔널 필드 추가)라 성립하는 선택입니다.
-비-additive 변경이나 출시 후 버전 간 마이그레이션이 필요해지는 시점에,
-**버전별 모델 스냅샷을 제대로 갖춘** `VersionedSchema`로 다시 들어갑니다 — 재도입 조건을 결정에 적어두었습니다.
-(DECISIONS [#12](Docs/DECISIONS.md) → [#22](Docs/DECISIONS.md))
+그래서 한동안 `migrationPlan` 없이 SwiftData의 자동 lightweight 마이그레이션에 맡겼다가,
+**버전마다 모델 스냅샷을 따로 두는 방식**으로 다시 들어갔습니다. 스냅샷에는 저장 속성과 관계만 두고
+동작은 extension으로 빼서, 새 버전을 만들 때 스냅샷 파일만 복사하면 되게 했습니다.
+이 크래시는 잡을 수 없는 예외라 런타임 폴백으로는 막을 수 없습니다. 그래서 버전끼리 모델 클래스를 공유하지 않는지
+**테스트가 정적으로 검사**하고, 버저닝 전 코드가 만든 실제 스토어를 픽스처로 두어 데이터 손실 없이 열리는지 확인합니다.
+(DECISIONS [#12](Docs/DECISIONS.md) → [#22](Docs/DECISIONS.md) → [#31](Docs/DECISIONS.md))
 
 **5. Swift 6 + MainActor 기본 격리**
 동시성 경고를 나중에 몰아서 처리하지 않도록 처음부터 Swift 6 language mode로 시작했습니다.
@@ -70,18 +71,19 @@ SwiftData의 `@Query`와 `ModelContext`가 이미 그 역할을 합니다.
 
 ```
 passage/
-├── App/                PassageApp · RootView · AppDependencies(서비스 컨테이너)
+├── App/                PassageApp · RootView · AppRouter · AppDependencies(서비스 컨테이너)
 ├── Core/
-│   ├── Models/         Book · Place · ReadingSession · Quote · PageRules
-│   ├── Services/       BookSearch · Naver 지도 · Location · ImageStore · Auth
+│   ├── Models/         Book · Place · ReadingSession · Quote · SessionPhoto · PageRules
+│   ├── Services/       BookSearch · PlaceSearch · Naver 지도 · Location · ImageStore · Auth
 │   ├── Persistence/    ModelContainer 구성
-│   └── DesignSystem/   Theme · BookCoverView · StoredImageView
+│   └── DesignSystem/   Theme · BookCoverView · PhotoThumbnail · PageSlider
 └── Features/
+    ├── Book/           책 검색·추가, 인용구 입력
     ├── Library/        책 목록과 책별 통계
     ├── Reading/        세션 시작·종료 컨트롤러
     ├── Place/          "어디서 읽으셨나요?" 흐름
     ├── Journal/        기억 회상 화면
-    ├── Reflection/     독서 후 남기는 소회 정리
+    ├── Reflection/     연도별 독서 기억 모으기
     └── Settings/
 ```
 

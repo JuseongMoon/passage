@@ -5,13 +5,12 @@
 //  앱 ModelContainer 팩토리. CloudKit private DB로 동기화하되,
 //  CloudKit이 불가한 환경(iCloud 미로그인 시뮬레이터 등)에서는 로컬로 폴백해 항상 실행되게 한다.
 //
-//  스키마 진화: 지금까지의 변경은 전부 additive(옵셔널 필드 추가)라 **SwiftData 자동 lightweight 마이그레이션**에
-//  맡긴다(migrationPlan 미지정). 과거의 VersionedSchema+MigrationPlan은 버전마다 모델 스냅샷 없이 같은 클래스를
-//  가리켜 "Duplicate version checksums" 크래시를 유발했으므로 제거했다. (→ DECISIONS)
+//  스키마 진화: 버전별 스냅샷(`PassageSchemaV<n>`) + `PassageMigrationPlan`. 모든 컨테이너는 `makeContainer(_:)`로
+//  만들어 마이그레이션 계획이 빠진 경로가 없게 한다. (→ Schema/PassageSchema.swift · DECISIONS #31)
 //
-//  ⚠️ 마이그레이션 실패 시 **기존 스토어를 지우고 새로 만든다**(destroyAndRetry). 지금 사용자는 전부
-//  테스터라 데이터 보존보다 "언제나 켜지는 것"이 우선이라는 결정. 정식 출시 전에는 이 폴백을 제거하고
-//  버전별 스냅샷을 갖춘 VersionedSchema로 전환해야 한다 — 안 그러면 실사용자 데이터가 조용히 날아간다.
+//  ⚠️ 마이그레이션 실패 시 **기존 스토어를 지우고 새로 만든다**(3차 폴백 · DECISIONS #26). 지금 사용자는 전부
+//  테스터라 데이터 보존보다 "언제나 켜지는 것"이 우선이라는 결정. 정식 출시 전에는 이 폴백을 제거해야 한다 —
+//  안 그러면 실사용자 데이터가 조용히 날아간다. 버전 간 체크섬 중복(#22)은 잡을 수 없는 예외라 이 폴백으로도 못 막는다.
 //
 
 import Foundation
@@ -21,13 +20,16 @@ import OSLog
 enum PassageModelContainer {
     private static let logger = Logger(subsystem: "com.ScienceFiction.passage", category: "Persistence")
 
-    private static var models: [any PersistentModel.Type] {
-        [Book.self, ReadingSession.self, Place.self, Quote.self, SessionPhoto.self]
+    /// 현재 버전 스키마. 구성(`ModelConfiguration`)도 같은 스키마로 만든다.
+    static var schema: Schema { Schema(versionedSchema: PassageSchemaLatest.self) }
+
+    /// 모든 컨테이너의 단일 생성 지점 — 앱·프리뷰·테스트가 같은 마이그레이션 계획을 쓴다.
+    static func makeContainer(_ configuration: ModelConfiguration) throws -> ModelContainer {
+        try ModelContainer(for: schema, migrationPlan: PassageMigrationPlan.self, configurations: configuration)
     }
 
     /// 앱 기본 컨테이너.
     static func makeShared() -> ModelContainer {
-        let schema = Schema(models)
 
         // 1차: CloudKit 동기화 구성(entitlement의 컨테이너를 자동 사용).
         let cloudConfig = ModelConfiguration(
@@ -35,7 +37,7 @@ enum PassageModelContainer {
             isStoredInMemoryOnly: false,
             cloudKitDatabase: .automatic
         )
-        if let container = try? ModelContainer(for: schema, configurations: cloudConfig) {
+        if let container = try? makeContainer(cloudConfig) {
             return container
         }
 
@@ -46,7 +48,7 @@ enum PassageModelContainer {
             isStoredInMemoryOnly: false,
             cloudKitDatabase: .none
         )
-        if let container = try? ModelContainer(for: schema, configurations: localConfig) {
+        if let container = try? makeContainer(localConfig) {
             return container
         }
 
@@ -55,11 +57,11 @@ enum PassageModelContainer {
         logger.error("기존 스토어를 열 수 없습니다 — 스토어를 삭제하고 새로 만듭니다(테스터 단계 정책).")
         destroyStore(at: localConfig.url)
 
-        if let container = try? ModelContainer(for: schema, configurations: cloudConfig) {
+        if let container = try? makeContainer(cloudConfig) {
             return container
         }
         do {
-            return try ModelContainer(for: schema, configurations: localConfig)
+            return try makeContainer(localConfig)
         } catch {
             fatalError("ModelContainer 생성 실패(스토어 삭제 후에도): \(error)")
         }
@@ -83,10 +85,9 @@ enum PassageModelContainer {
 
     /// Preview·테스트용 인메모리 컨테이너.
     static func makePreview() -> ModelContainer {
-        let schema = Schema(models)
         let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         do {
-            return try ModelContainer(for: schema, configurations: config)
+            return try makeContainer(config)
         } catch {
             fatalError("Preview ModelContainer 생성 실패: \(error)")
         }
