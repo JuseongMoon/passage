@@ -33,7 +33,7 @@ SwiftUI · SwiftData(+CloudKit private sync) · Observation(`@Observable`) · as
   구조(actor/`@MainActor`) 변경은 **신중히** — 작은 협력 패턴(yield, priority 조정)을 먼저 시도한다.
 - **SwiftData × CloudKit**: 모든 저장 속성은 `optional` 또는 **기본값**. `@Attribute(.unique)` **금지**(앱단 dedup). 관계는 `optional` + **inverse 필수**.
 - **서비스는 protocol 우선**(테스트·교체 용이). 주입은 `AppDependencies`를 Environment로 1회 주입.
-- **네이밍**: 타입 UpperCamel, 그 외 lowerCamel. `~View` / `~Store`·`~Model`·`~Controller` / `~Service`.
+- **네이밍**: 타입 UpperCamel, 그 외 lowerCamel. 타입 이름엔 역할을 드러내는 접미사를 쓴다(`~View`·`~Store`·`~Controller`·`~Service` 등). 새 역할이면 기존 이름(`~Organizer`·`~Filler`)을 따른다.
 - **UI 문구는 한국어.** Dynamic Type · 접근성(VoiceOver) · 다크모드 항상 지원.
 - **시크릿**: `Secrets.xcconfig`(gitignored)에만. 코드·문서·커밋에 값 하드코딩 금지.
 
