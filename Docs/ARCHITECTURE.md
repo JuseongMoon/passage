@@ -147,8 +147,9 @@ enum PassageMigrationPlan: SchemaMigrationPlan { schemas: [V1] · stages: [] }
 - **출시 후(CloudKit Production 배포 이후)**: 이전 스냅샷은 동결한다. Production 스키마는 **추가만** 된다
   (모델·필드 삭제, 이름·타입 변경 불가). 변경은 옵셔널 필드 추가 + `.lightweight` 단계로 하고,
   이름 변경·삭제는 "새 필드 추가 + 옛 필드 방치"로 대신한다. 값 변환용 `.custom` 단계의 CloudKit 스토어 동작은 도입 시 실측한다.
-- ⚠️ 현재 마이그레이션 실패 시 스토어를 삭제 후 재생성하는 폴백(`PassageModelContainer.makeShared()`의 3차 폴백 ·
-  `destroyStore(at:)`, DECISIONS #26)이 있다. **정식 출시 전 제거 대상** — 제거할 때 실패 처리(스토어 격리 보관·안내 화면 등)를 함께 정한다.
+- 기존 스토어를 열 수 없으면(비-additive 변경·손상) **지우지 않고 격리 보관**한다 — 본체·저널·외부 저장 폴더를
+  `Application Support/StoreQuarantine/<시각>/`으로 옮기고(최근 3개만 유지) 새 스토어로 켠 뒤 한 번 알린다.
+  iCloud 동기화를 쓰던 기록은 CloudKit에서 다시 내려받는다. (`StoreQuarantine` · DECISIONS #32)
 
 ## 6. 영속성 · 동시성
 - 메인 컨텍스트는 `@Environment(\.modelContext)`로 View에서 사용(메인 액터).

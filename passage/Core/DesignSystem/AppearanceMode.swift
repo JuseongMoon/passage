@@ -34,4 +34,6 @@ enum AppearanceMode: String, CaseIterable, Identifiable {
 /// @AppStorage 키(설정과 루트가 공유).
 enum AppStorageKey {
     static let appearanceMode = "appearanceMode"
+    /// 스토어를 격리 보관하고 새로 켰을 때 true — 루트가 한 번 알리고 끈다. (→ StoreQuarantine)
+    static let storeRecoveryNoticePending = "storeRecoveryNoticePending"
 }

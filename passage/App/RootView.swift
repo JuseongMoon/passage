@@ -15,6 +15,7 @@ struct RootView: View {
     @Environment(ReadingSessionController.self) private var sessionController
     @Environment(AppDependencies.self) private var dependencies
     @AppStorage(AppStorageKey.appearanceMode) private var appearanceMode = AppearanceMode.system
+    @AppStorage(AppStorageKey.storeRecoveryNoticePending) private var storeRecoveryNoticePending = false
     @State private var router = AppRouter()
 
     var body: some View {
@@ -37,6 +38,12 @@ struct RootView: View {
             ReadingSessionView()
         }
         .preferredColorScheme(appearanceMode.colorScheme)   // 설정의 화면 모드(기본=시스템)
+        // 스토어를 열지 못해 원본을 격리 보관하고 새로 켰을 때 한 번만 알린다(닫으면 꺼진다). (→ StoreQuarantine)
+        .alert("기록을 여는 중 문제가 있었어요", isPresented: $storeRecoveryNoticePending) {
+            Button("확인", role: .cancel) {}
+        } message: {
+            Text("이 기기의 원본은 따로 보관해 두었어요. iCloud 동기화를 쓰고 있었다면 기록이 곧 다시 내려받아져요.")
+        }
         .task {
             // 앱 시작 시 위치 권한을 한 번 요청(장소 자동채움 보조). 미결정일 때만 프롬프트.
             if dependencies.location.authorizationStatus == .notDetermined {
